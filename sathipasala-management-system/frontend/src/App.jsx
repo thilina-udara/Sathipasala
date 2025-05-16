@@ -5,6 +5,8 @@ import Login from './pages/Login';
 import AdminLayout from './components/layout/AdminLayout';
 import AdminDashboard from './pages/admin/Dashboard';
 import StudentRegistration from './pages/admin/StudentRegistration';
+import Students from './pages/admin/Students';
+import Attendance from './pages/admin/Attendance';
 import './i18n';
 
 function App() {
@@ -19,7 +21,9 @@ function App() {
           <Route element={<ProtectedRoute allowedRoles={['admin']} />}>
             <Route element={<AdminLayout />}>
               <Route path="/admin/dashboard" element={<AdminDashboard />} />
+              <Route path="/admin/students" element={<Students />} />
               <Route path="/admin/students/register" element={<StudentRegistration />} />
+              <Route path="/admin/attendance" element={<Attendance />} />
               {/* Add more admin routes here */}
             </Route>
           </Route>
