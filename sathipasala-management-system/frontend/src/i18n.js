@@ -42,7 +42,39 @@ const resources = {
           parentPhone: 'Phone Number',
           parentEmail: 'Email Address',
           address: 'Address',
-          registerStudent: 'Register Student'
+          registerStudent: 'Register Student',
+          firstName: 'First Name',
+          lastName: 'Last Name',
+          gender: 'Gender',
+          selectGender: 'Select Gender',
+          male: 'Male',
+          female: 'Female',
+          other: 'Other',
+          parentName: 'Parent/Guardian Name',
+          emergencyContact: 'Emergency Contact',
+          emergencyContactPlaceholder: 'Alternative contact number',
+          profilePhoto: 'Profile Photo'
+        },
+        filters: {
+          all: 'All'
+        },
+        view: 'View',
+        edit: 'Edit',
+        actions: 'Actions',
+        attendance: {
+          markAttendance: 'Mark Attendance',
+          date: 'Date',
+          status: 'Status',
+          present: 'Present',
+          absent: 'Absent',
+          late: 'Late',
+          reason: 'Reason',
+          reasonPlaceholder: 'Enter reason for absence/late',
+          submitAttendance: 'Submit Attendance',
+          markingSuccess: 'Attendance marked successfully'
+        },
+        common: {
+          optional: 'Optional'
         }
       },
       common: {
@@ -114,7 +146,39 @@ const resources = {
           parentPhone: 'දුරකථන අංකය',
           parentEmail: 'විද්‍යුත් තැපෑල',
           address: 'ලිපිනය',
-          registerStudent: 'සිසුවා ලියාපදිංචි කරන්න'
+          registerStudent: 'සිසුවා ලියාපදිංචි කරන්න',
+          firstName: 'මුල් නම',
+          lastName: 'අවසන් නම',
+          gender: 'ස්ත්‍රී පුරුෂ භාවය',
+          selectGender: 'ස්ත්‍රී පුරුෂ භාවය තෝරන්න',
+          male: 'පුරුෂ',
+          female: 'ස්ත්‍රී',
+          other: 'වෙනත්',
+          parentName: 'දෙමාපිය/භාරකරුගේ නම',
+          emergencyContact: 'හදිසි ඇමතුම් අංකය',
+          emergencyContactPlaceholder: 'විකල්ප ඇමතුම් අංකය',
+          profilePhoto: 'පෞද්ගලික ඡායාරූපය'
+        },
+        filters: {
+          all: 'සියල්ල'
+        },
+        view: 'බලන්න',
+        edit: 'වෙනස් කරන්න',
+        actions: 'ක්‍රියා',
+        attendance: {
+          markAttendance: 'පැමිණීම සටහන් කරන්න',
+          date: 'දිනය',
+          status: 'තත්ත්වය',
+          present: 'පැමිණ ඇත',
+          absent: 'පැමිණ නැත',
+          late: 'ප්‍රමාද වී',
+          reason: 'හේතුව',
+          reasonPlaceholder: 'නොපැමිණීමේ/ප්‍රමාද වීමේ හේතුව',
+          submitAttendance: 'පැමිණීම ඉදිරිපත් කරන්න',
+          markingSuccess: 'පැමිණීම සාර්ථකව සටහන් කර ඇත'
+        },
+        common: {
+          optional: 'අත්‍යවශ්‍ය නොවේ'
         }
       },
       common: {
