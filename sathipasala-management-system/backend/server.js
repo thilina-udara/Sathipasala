@@ -29,6 +29,9 @@ app.get('/', (req, res) => {
   });
 });
 
+// Serve static files
+app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
+
 // Error handling middleware
 app.use((err, req, res, next) => {
   console.error(err.stack);

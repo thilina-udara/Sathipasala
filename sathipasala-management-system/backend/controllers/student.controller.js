@@ -33,8 +33,7 @@ exports.registerStudent = async (req, res) => {
       ageGroup,
       classYear,
       classCode,
-      parentInfo,
-      profileImage
+      parentInfo
     } = req.body;
 
     // Check if student with same name and DOB exists
@@ -56,6 +55,17 @@ exports.registerStudent = async (req, res) => {
       classCode
     );
 
+    // Add profile image if available
+    let profileImage = null;
+    if (req.file) {
+      // Create URL path to the uploaded file
+      const baseUrl = `${req.protocol}://${req.get('host')}`;
+      profileImage = {
+        public_id: req.file.filename,
+        url: `${baseUrl}/uploads/students/${req.file.filename}`
+      };
+    }
+
     // Create student
     const student = await Student.create({
       studentId,
@@ -73,6 +83,7 @@ exports.registerStudent = async (req, res) => {
       data: student
     });
   } catch (error) {
+    console.error("Error registering student:", error);
     res.status(500).json({
       success: false,
       message: error.message
