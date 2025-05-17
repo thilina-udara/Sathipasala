@@ -349,7 +349,7 @@ const StudentRegistration = () => {
                 />
               </div>
               <p className="text-xs text-gray-500 mt-1">
-                {t('admin.common.hints.imageRequirements')}
+                {t('admin.students.imageHint')} (Max 2MB, JPG/PNG)
               </p>
             </div>
           </div>

@@ -5,39 +5,39 @@ const fs = require('fs');
 // Configure storage for uploaded files
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    const uploadDir = 'public/uploads/students';
+    const uploadPath = path.join(__dirname, '../public/uploads/students');
     
     // Create directory if it doesn't exist
-    if (!fs.existsSync(uploadDir)) {
-      fs.mkdirSync(uploadDir, { recursive: true });
+    if (!fs.existsSync(uploadPath)) {
+      fs.mkdirSync(uploadPath, { recursive: true });
     }
     
-    cb(null, uploadDir);
+    cb(null, uploadPath);
   },
   filename: (req, file, cb) => {
-    // Create a unique filename to prevent overwriting
+    // Generate unique filename
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    const ext = path.extname(file.originalname);
-    cb(null, 'student-' + uniqueSuffix + ext);
+    const fileExt = path.extname(file.originalname);
+    cb(null, 'profile-' + uniqueSuffix + fileExt);
   }
 });
 
-// File filter function to only allow certain types of images
+// Filter for allowed file types
 const fileFilter = (req, file, cb) => {
-  const allowedMimes = ['image/jpeg', 'image/png', 'image/gif'];
+  const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
   
-  if (allowedMimes.includes(file.mimetype)) {
-    cb(null, true);
+  if (allowedTypes.includes(file.mimetype)) {
+    cb(null, true); // Accept file
   } else {
-    cb(new Error('Invalid file type. Only JPG, PNG, and GIF files are allowed.'), false);
+    cb(new Error('Only JPG, PNG and GIF images are allowed'), false);
   }
 };
 
-// Create and configure the multer upload middleware
+// Configure multer
 const upload = multer({
   storage: storage,
   limits: {
-    fileSize: 2 * 1024 * 1024 // 2MB max file size
+    fileSize: 2 * 1024 * 1024 // 2 MB limit
   },
   fileFilter: fileFilter
 });
