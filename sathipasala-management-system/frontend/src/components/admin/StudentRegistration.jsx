@@ -339,7 +339,6 @@ const StudentRegistration = () => {
                   ref={fileInputRef}
                   accept="image/*"
                   onChange={handleImageChange}
-                  disabled={true} // Disabled until Cloudinary is set up
                   className="block w-full text-sm text-gray-500 dark:text-gray-400
                     file:mr-4 file:py-2 file:px-4
                     file:rounded file:border-0
@@ -350,7 +349,7 @@ const StudentRegistration = () => {
                 />
               </div>
               <p className="text-xs text-gray-500 mt-1">
-                Image upload temporarily disabled
+                {t('admin.common.hints.imageRequirements')}
               </p>
             </div>
           </div>

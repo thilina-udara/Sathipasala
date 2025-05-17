@@ -91,6 +91,25 @@ const Students = () => {
     setPageInfo(prev => ({ ...prev, limit: newLimit, page: 1 }));
   };
 
+  // Add this function to handle deletion
+  const handleDelete = async (id, studentName) => {
+    if (window.confirm(`Are you sure you want to delete ${studentName}?`)) {
+      try {
+        await axios.delete(`/api/students/${id}`, {
+          headers: {
+            Authorization: `Bearer ${localStorage.getItem('token')}`
+          }
+        });
+        
+        // Refresh the student list after deletion
+        fetchStudents();
+        
+      } catch (err) {
+        setError(err.response?.data?.message || 'Failed to delete student');
+      }
+    }
+  };
+
   if (loading) {
     return <div className="flex justify-center items-center h-full">Loading...</div>;
   }
@@ -100,9 +119,9 @@ const Students = () => {
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 md:mb-0">
-            {t('admin.students.allStudents')} 
+            All Students
             <span className="ml-2 text-sm font-normal text-gray-500 dark:text-gray-400">
-              ({pageInfo.totalStudents} {t('admin.students.totalStudents')})
+              ({pageInfo.totalStudents} total)
             </span>
           </h2>
           
@@ -208,7 +227,7 @@ const Students = () => {
                     className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
                     onClick={() => handleSortChange('studentId')}
                   >
-                    {t('admin.students.studentId')}
+                    Student ID
                     {filter.sortBy === 'studentId' && (
                       <span className="ml-1">{filter.sortOrder === 'asc' ? '↑' : '↓'}</span>
                     )}
@@ -217,28 +236,28 @@ const Students = () => {
                     className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
                     onClick={() => handleSortChange('name.en')}
                   >
-                    {t('admin.students.nameEnglish')}
+                    Name
                     {filter.sortBy === 'name.en' && (
                       <span className="ml-1">{filter.sortOrder === 'asc' ? '↑' : '↓'}</span>
                     )}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    {t('admin.students.ageGroup')}
+                    Age Group
                   </th>
                   <th 
                     className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-600"
                     onClick={() => handleSortChange('classYear')}
                   >
-                    {t('admin.students.class')}
+                    Class
                     {filter.sortBy === 'classYear' && (
                       <span className="ml-1">{filter.sortOrder === 'asc' ? '↑' : '↓'}</span>
                     )}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    {t('admin.students.parentPhone')}
+                    Parent Contact
                   </th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                    {t('admin.actions')}
+                    Actions
                   </th>
                 </tr>
               </thead>
@@ -263,16 +282,22 @@ const Students = () => {
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <Link
                         to={`/admin/students/${student._id}`}
-                        className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 mr-4"
+                        className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300 mr-3"
                       >
-                        {t('admin.view')}
+                        View
                       </Link>
                       <Link
                         to={`/admin/students/${student._id}/edit`}
-                        className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300"
+                        className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300 mr-3"
                       >
-                        {t('admin.edit')}
+                        Edit
                       </Link>
+                      <button
+                        onClick={() => handleDelete(student._id, student.name.en)}
+                        className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
+                      >
+                        Delete
+                      </button>
                     </td>
                   </tr>
                 ))}
