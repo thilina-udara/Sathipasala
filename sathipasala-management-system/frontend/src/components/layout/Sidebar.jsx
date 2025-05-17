@@ -161,10 +161,11 @@ const Sidebar = ({ isMobile, closeMobileMenu }) => {
           hasSubMenu={true}
           subMenuKey="attendance" 
           icon="📝" 
-          label={t('attendance')}
+          label={t('sidebar.attendance')}
         >
-          <SubNavItem to="/admin/attendance" label={t('markAttendance')} />
-          <SubNavItem to="/admin/attendance/reports" label={t('attendanceReports')} />
+          <SubNavItem to="/admin/attendance" label={t('sidebar.markAttendance')} />
+          <SubNavItem to="/admin/attendance/analysis" label={t('sidebar.attendanceAnalysis')} />
+          <SubNavItem to="/admin/attendance/reports" label={t('sidebar.attendanceReports')} />
         </NavItem>
 
         <NavItem 

@@ -3,15 +3,17 @@ import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 
 const StudentRegistration = () => {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState({ type: '', text: '' });
+  const [profileImage, setProfileImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const fileInputRef = useRef(null);
   
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
+    sinhalaName: '', // Added field for Sinhala name
     dateOfBirth: '',
     gender: '',
     ageGroup: '3-6',
@@ -23,8 +25,7 @@ const StudentRegistration = () => {
       email: '',
       address: ''
     },
-    emergencyContact: '',
-    profileImage: null
+    emergencyContact: ''
   });
 
   const handleChange = (e) => {
@@ -48,18 +49,43 @@ const StudentRegistration = () => {
   };
 
   const handleImageChange = (e) => {
-    if (e.target.files && e.target.files[0]) {
-      const file = e.target.files[0];
-      setFormData({
-        ...formData,
-        profileImage: file
+    const file = e.target.files[0];
+    if (!file) return;
+    
+    // Validate file type
+    const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
+    if (!allowedTypes.includes(file.type)) {
+      setMessage({
+        type: 'error',
+        text: t('common.errors.invalidImageType')
       });
-      
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result);
-      };
-      reader.readAsDataURL(file);
+      return;
+    }
+    
+    // Validate file size (max 2MB)
+    if (file.size > 2 * 1024 * 1024) {
+      setMessage({
+        type: 'error',
+        text: t('common.errors.imageTooLarge')
+      });
+      return;
+    }
+    
+    setProfileImage(file);
+    
+    // Create preview
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImagePreview(reader.result);
+    };
+    reader.readAsDataURL(file);
+  };
+  
+  const handleRemoveImage = () => {
+    setImagePreview(null);
+    setProfileImage(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
     }
   };
 
@@ -69,54 +95,53 @@ const StudentRegistration = () => {
     setMessage({ type: '', text: '' });
 
     try {
-      // Format the student's full name
-      const fullName = `${formData.firstName} ${formData.lastName}`;
+      // Create form data object for multipart/form-data submission
+      const submitData = new FormData();
       
-      // Prepare data for API - with both English and Sinhala names set to the same value
-      // The backend model requires both, but we're using the same value for both languages
-      const studentData = {
-        name: {
-          en: fullName,
-          si: fullName  // Using same name for both languages
-        },
-        dateOfBirth: formData.dateOfBirth,
-        gender: formData.gender,
-        ageGroup: formData.ageGroup,
-        classYear: formData.classYear,
-        classCode: formData.classCode,
-        parentInfo: {
-          name: {
-            en: formData.parentInfo.name,
-            si: formData.parentInfo.name  // Using same name for both languages
-          },
-          phone: formData.parentInfo.phone,
-          email: formData.parentInfo.email,
-          address: formData.parentInfo.address
-        },
-        emergencyContact: formData.emergencyContact
-      };
+      // Add student information
+      submitData.append('name[en]', `${formData.firstName} ${formData.lastName}`);
+      submitData.append('name[si]', formData.sinhalaName || `${formData.firstName} ${formData.lastName}`);
+      submitData.append('dateOfBirth', formData.dateOfBirth);
+      submitData.append('gender', formData.gender);
+      submitData.append('ageGroup', formData.ageGroup);
+      submitData.append('classYear', formData.classYear);
+      submitData.append('classCode', formData.classCode);
       
-      // Skip image upload for now
-      // We'll implement Cloudinary integration separately
-
-      console.log("Submitting student data:", studentData);
+      // Add parent information
+      submitData.append('parentInfo[name][en]', formData.parentInfo.name);
+      submitData.append('parentInfo[name][si]', formData.parentInfo.name);
+      submitData.append('parentInfo[phone]', formData.parentInfo.phone);
+      submitData.append('parentInfo[email]', formData.parentInfo.email);
+      submitData.append('parentInfo[address]', formData.parentInfo.address);
       
-      const response = await axios.post('/api/students', studentData, {
+      // Add emergency contact if provided
+      if (formData.emergencyContact) {
+        submitData.append('emergencyContact', formData.emergencyContact);
+      }
+      
+      // Add profile image if provided
+      if (profileImage) {
+        submitData.append('profileImage', profileImage);
+      }
+      
+      // Send data to API
+      const response = await axios.post('/api/students', submitData, {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`,
-          'Content-Type': 'application/json'
+          'Content-Type': 'multipart/form-data',
+          'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
       });
 
       setMessage({
         type: 'success',
-        text: `Student registered successfully with ID: ${response.data.data?.studentId || 'N/A'}`
+        text: `${t('admin.students.registrationSuccess')}: ${response.data.data?.studentId || 'N/A'}`
       });
       
       // Reset form
       setFormData({
         firstName: '',
         lastName: '',
+        sinhalaName: '',
         dateOfBirth: '',
         gender: '',
         ageGroup: '3-6',
@@ -128,10 +153,10 @@ const StudentRegistration = () => {
           email: '',
           address: ''
         },
-        emergencyContact: '',
-        profileImage: null
+        emergencyContact: ''
       });
       setImagePreview(null);
+      setProfileImage(null);
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
@@ -140,7 +165,7 @@ const StudentRegistration = () => {
       console.error("Registration error:", error);
       setMessage({
         type: 'error',
-        text: error.response?.data?.message || 'Error registering student'
+        text: error.response?.data?.message || t('admin.students.registrationError')
       });
     } finally {
       setLoading(false);
@@ -298,11 +323,7 @@ const StudentRegistration = () => {
                     />
                     <button
                       type="button"
-                      onClick={() => {
-                        setImagePreview(null);
-                        setFormData({...formData, profileImage: null});
-                        if (fileInputRef.current) fileInputRef.current.value = '';
-                      }}
+                      onClick={handleRemoveImage}
                       className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 w-6 h-6 flex items-center justify-center"
                     >
                       ×
