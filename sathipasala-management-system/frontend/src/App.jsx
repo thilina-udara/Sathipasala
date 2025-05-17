@@ -7,6 +7,7 @@ import AdminDashboard from './pages/admin/Dashboard';
 import StudentRegistration from './pages/admin/StudentRegistration';
 import Students from './pages/admin/Students';
 import Attendance from './pages/admin/Attendance';
+import AttendanceAnalysis from './pages/admin/AttendanceAnalysis';
 import './i18n';
 
 function App() {
@@ -24,6 +25,7 @@ function App() {
               <Route path="/admin/students" element={<Students />} />
               <Route path="/admin/students/register" element={<StudentRegistration />} />
               <Route path="/admin/attendance" element={<Attendance />} />
+              <Route path="/admin/attendance/analysis" element={<AttendanceAnalysis />} />
               {/* Add more admin routes here */}
             </Route>
           </Route>

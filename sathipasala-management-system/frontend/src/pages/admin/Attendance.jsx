@@ -12,8 +12,27 @@ const Attendance = () => {
     classYear: new Date().getFullYear().toString(),
     classCode: 'A',
   });
+  
+  // Default to the nearest Sunday
+  const getNextSunday = () => {
+    const today = new Date();
+    const dayOfWeek = today.getDay(); // 0 is Sunday
+    
+    // If today is Sunday, use today's date
+    if (dayOfWeek === 0) {
+      return today.toISOString().split('T')[0];
+    }
+    
+    // Otherwise, find the next Sunday
+    const daysUntilNextSunday = 7 - dayOfWeek;
+    const nextSunday = new Date(today);
+    nextSunday.setDate(today.getDate() + daysUntilNextSunday);
+    
+    return nextSunday.toISOString().split('T')[0];
+  };
+  
   const [attendance, setAttendance] = useState({
-    date: new Date().toISOString().split('T')[0],
+    date: getNextSunday(),
     records: []
   });
 
@@ -31,12 +50,13 @@ const Attendance = () => {
           }
         );
         
-        setStudents(res.data.data);
+        const studentsData = res.data.data || [];
+        setStudents(studentsData);
         
         // Initialize attendance records for all students
         setAttendance(prev => ({
           ...prev,
-          records: res.data.data.map(student => ({
+          records: studentsData.map(student => ({
             studentId: student._id,
             studentName: student.name.en,
             status: 'present',
@@ -45,6 +65,30 @@ const Attendance = () => {
         }));
         
       } catch (err) {
+        console.error("Error fetching students:", err);
+        // For development/testing:
+        const mockStudents = Array(12).fill(0).map((_, i) => ({
+          _id: `student-${i+1}`,
+          studentId: `SATHI-${filter.classYear}-${filter.classCode}-${String(i+1).padStart(3, '0')}`,
+          name: {
+            en: `Student ${i+1}`,
+            si: `සිසුවා ${i+1}`
+          }
+        }));
+        
+        setStudents(mockStudents);
+        
+        // Initialize attendance records for mock students
+        setAttendance(prev => ({
+          ...prev,
+          records: mockStudents.map(student => ({
+            studentId: student._id,
+            studentName: student.name.en,
+            status: 'present',
+            reason: ''
+          }))
+        }));
+        
         setError(err.response?.data?.message || 'Failed to fetch students');
       } finally {
         setLoading(false);
@@ -60,6 +104,15 @@ const Attendance = () => {
   };
 
   const handleDateChange = (e) => {
+    const selectedDate = new Date(e.target.value);
+    
+    // Check if selected date is a Sunday
+    if (selectedDate.getDay() !== 0) {
+      setError(t('admin.attendance.sundayRequired'));
+      return;
+    }
+    
+    setError(null);
     setAttendance(prev => ({ ...prev, date: e.target.value }));
   };
 
@@ -84,7 +137,27 @@ const Attendance = () => {
       )
     }));
   };
-
+  
+  // Bulk status actions - mark all students at once
+  const handleBulkStatus = (status) => {
+    setAttendance(prev => ({
+      ...prev,
+      records: prev.records.map(record => ({
+        ...record,
+        status
+      }))
+    }));
+  };
+  
+  // Filter students by name
+  const [searchTerm, setSearchTerm] = useState('');
+  
+  const filteredStudents = students.filter(student => 
+    student.name.en.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    student.name.si?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    student.studentId.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+  
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
@@ -92,13 +165,22 @@ const Attendance = () => {
     setSuccess(null);
 
     try {
+      // Check if selected date is a Sunday
+      const selectedDate = new Date(attendance.date);
+      if (selectedDate.getDay() !== 0) {
+        throw new Error(t('admin.attendance.sundayRequired'));
+      }
+      
       // In a real implementation, you would submit attendance to your API
-      // const res = await axios.post('/api/attendance/bulk', attendance, {
-      //   headers: {
-      //     Authorization: `Bearer ${localStorage.getItem('token')}`,
-      //   },
-      // });
-
+      /*
+      const res = await axios.post('/api/attendance/bulk', attendance, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`,
+        },
+      });
+      setSuccess(t('admin.attendance.markingSuccess'));
+      */
+      
       // For now, just simulate success
       setTimeout(() => {
         setSuccess(t('admin.attendance.markingSuccess'));
@@ -106,10 +188,37 @@ const Attendance = () => {
       }, 1000);
       
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to submit attendance');
+      setError(err.message || 'Failed to submit attendance');
       setLoading(false);
     }
   };
+
+  // Function to get all Sundays in the current month
+  const getSundaysInCurrentMonth = () => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth();
+    
+    const sundays = [];
+    const date = new Date(year, month, 1);
+    
+    // Find first Sunday
+    while (date.getDay() !== 0) {
+      date.setDate(date.getDate() + 1);
+    }
+    
+    // Get all Sundays in the month
+    while (date.getMonth() === month) {
+      sundays.push(new Date(date));
+      date.setDate(date.getDate() + 7);
+    }
+    
+    return sundays;
+  };
+
+  const currentMonthSundays = getSundaysInCurrentMonth();
+  const selectedDate = new Date(attendance.date);
+  const isSelectedDateSunday = selectedDate.getDay() === 0;
 
   if (loading && students.length === 0) {
     return <div className="flex justify-center items-center h-full">Loading...</div>;
@@ -118,12 +227,19 @@ const Attendance = () => {
   return (
     <div className="space-y-6">
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-        <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">
           {t('admin.attendance.markAttendance')}
         </h2>
         
+        <div className="mb-6 p-3 bg-blue-50 dark:bg-blue-900 text-blue-700 dark:text-blue-300 rounded-lg">
+          <div className="flex items-center">
+            <span className="mr-2">ℹ️</span>
+            <span>{t('admin.attendance.sundayAttendanceInfo')}</span>
+          </div>
+        </div>
+        
         {/* Filters and Date Selection */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
               {t('admin.students.classYear')}
@@ -154,12 +270,67 @@ const Attendance = () => {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              {t('admin.attendance.date')}
+              {t('admin.attendance.date')} 
+              <span className="ml-1 text-blue-600 dark:text-blue-400 text-xs font-normal">
+                ({t('admin.attendance.sundaysOnly')})
+              </span>
             </label>
             <input
               type="date"
               value={attendance.date}
               onChange={handleDateChange}
+              className={`w-full px-3 py-2 border rounded focus:outline-none focus:ring 
+                ${isSelectedDateSunday
+                  ? 'border-blue-300 focus:border-blue-500 dark:border-blue-600' 
+                  : 'border-red-300 focus:border-red-500 dark:border-red-600'}`}
+            />
+            <div className="flex items-center mt-1">
+              <div className={`w-3 h-3 rounded-full mr-2 ${
+                isSelectedDateSunday
+                  ? 'bg-green-500' 
+                  : 'bg-red-500'
+              }`}></div>
+              <span className="text-xs text-gray-600 dark:text-gray-400">
+                {selectedDate.toLocaleDateString(undefined, { weekday: 'long' })}
+                {!isSelectedDateSunday && (
+                  <span className="text-red-600 ml-2 font-medium">
+                    {t('admin.attendance.notSunday')}
+                  </span>
+                )}
+              </span>
+            </div>
+            
+            {/* Available Sundays quick selection */}
+            <div className="mt-3">
+              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">
+                {t('admin.attendance.availableSundays')}:
+              </label>
+              <div className="flex flex-wrap gap-1 mt-1">
+                {currentMonthSundays.map(sunday => (
+                  <button
+                    key={sunday.toISOString()}
+                    type="button"
+                    onClick={() => setAttendance(prev => ({ ...prev, date: sunday.toISOString().split('T')[0] }))}
+                    className={`text-xs px-2 py-1 rounded 
+                      ${sunday.toISOString().split('T')[0] === attendance.date 
+                        ? 'bg-blue-500 text-white' 
+                        : 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'}`}
+                  >
+                    {sunday.getDate()}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+              {t('admin.search')}
+            </label>
+            <input
+              type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              placeholder={t('admin.attendance.searchPlaceholder')}
               className="w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:border-blue-300 dark:bg-gray-700 dark:text-white dark:border-gray-600"
             />
           </div>
@@ -177,9 +348,36 @@ const Attendance = () => {
           </div>
         )}
 
-        {students.length === 0 ? (
+        {/* Bulk Actions */}
+        <div className="flex flex-wrap gap-2 mb-6">
+          <button
+            type="button"
+            onClick={() => handleBulkStatus('present')}
+            className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
+          >
+            {t('admin.attendance.markAllPresent')}
+          </button>
+          <button
+            type="button"
+            onClick={() => handleBulkStatus('absent')}
+            className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+          >
+            {t('admin.attendance.markAllAbsent')}
+          </button>
+          <button
+            type="button"
+            onClick={() => handleBulkStatus('late')}
+            className="px-4 py-2 bg-yellow-600 text-white rounded hover:bg-yellow-700 transition-colors"
+          >
+            {t('admin.attendance.markAllLate')}
+          </button>
+        </div>
+
+        {filteredStudents.length === 0 ? (
           <div className="text-center p-6 text-gray-500 dark:text-gray-400">
-            {t('admin.students.noStudentsFound')}
+            {students.length > 0 
+              ? t('admin.attendance.noStudentsMatchSearch')
+              : t('admin.students.noStudentsFound')}
           </div>
         ) : (
           <form onSubmit={handleSubmit}>
@@ -202,7 +400,7 @@ const Attendance = () => {
                   </tr>
                 </thead>
                 <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                  {students.map((student) => {
+                  {filteredStudents.map((student) => {
                     const record = attendance.records.find(r => r.studentId === student._id);
                     return (
                       <tr key={student._id}>
@@ -216,7 +414,13 @@ const Attendance = () => {
                           <select
                             value={record?.status || 'present'}
                             onChange={(e) => handleStatusChange(student._id, e.target.value)}
-                            className="px-3 py-1 border rounded focus:outline-none focus:ring focus:border-blue-300 dark:bg-gray-700 dark:text-white dark:border-gray-600"
+                            className={`px-3 py-1 border rounded focus:outline-none focus:ring ${
+                              record?.status === 'present'
+                                ? 'border-green-300 bg-green-50 text-green-800 dark:bg-green-900 dark:text-green-200'
+                                : record?.status === 'absent'
+                                ? 'border-red-300 bg-red-50 text-red-800 dark:bg-red-900 dark:text-red-200'
+                                : 'border-yellow-300 bg-yellow-50 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'
+                            }`}
                           >
                             <option value="present">{t('admin.attendance.present')}</option>
                             <option value="absent">{t('admin.attendance.absent')}</option>
@@ -241,10 +445,15 @@ const Attendance = () => {
               </table>
             </div>
             
-            <div className="mt-6 text-right">
+            <div className="mt-6 flex justify-between">
+              <div>
+                <span className="text-sm text-gray-600 dark:text-gray-400">
+                  {t('admin.attendance.studentsShown')}: {filteredStudents.length} / {students.length}
+                </span>
+              </div>
               <button
                 type="submit"
-                disabled={loading}
+                disabled={loading || !isSelectedDateSunday}
                 className="py-2 px-4 bg-blue-600 text-white rounded hover:bg-blue-700 focus:outline-none focus:ring disabled:opacity-50"
               >
                 {loading ? t('common.submitting') : t('admin.attendance.submitAttendance')}

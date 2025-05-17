@@ -53,7 +53,8 @@ const resources = {
           parentName: 'Parent/Guardian Name',
           emergencyContact: 'Emergency Contact',
           emergencyContactPlaceholder: 'Alternative contact number',
-          profilePhoto: 'Profile Photo'
+          profilePhoto: 'Profile Photo',
+          uploadProfileImage: 'Upload student photo'
         },
         filters: {
           all: 'All'
@@ -71,11 +72,77 @@ const resources = {
           reason: 'Reason',
           reasonPlaceholder: 'Enter reason for absence/late',
           submitAttendance: 'Submit Attendance',
-          markingSuccess: 'Attendance marked successfully'
+          markingSuccess: 'Attendance marked successfully',
+          monthlyAnalysis: 'Monthly Attendance Analysis',
+          month: 'Month',
+          year: 'Year',
+          totalStudents: 'Total Students',
+          averageAttendance: 'Average Attendance',
+          highestAttendance: 'Highest Attendance Day',
+          lowestAttendance: 'Lowest Attendance Day',
+          dailyAttendanceChart: 'Daily Attendance Chart',
+          dailyBreakdown: 'Daily Breakdown',
+          attendanceRate: 'Attendance Rate',
+          weekend: 'Weekend',
+          noDataFound: 'No attendance data found',
+          markAllPresent: 'Mark All Present',
+          markAllAbsent: 'Mark All Absent',
+          markAllLate: 'Mark All Late',
+          sundaysOnly: 'Sundays Only',
+          studentsShown: 'Students Shown',
+          noStudentsMatchSearch: 'No students match your search',
+          studentAttendance: 'Student Attendance',
+          startDate: 'Start Date',
+          endDate: 'End Date',
+          searchPlaceholder: 'Search by name or ID',
+          notSunday: 'Not a Sunday',
+          sundayAttendanceInfo: 'Classes are held only on Sundays. Attendance can only be marked for Sundays.',
+          availableSundays: 'Available Sundays this month',
+          sunday: 'Sunday',
+          noSundays: 'No Sundays',
+          noSundaysInMonth: 'No Sundays in this month',
+          sundayRequired: 'Please select a Sunday as class day',
+          studentDetails: 'Student Details',
+          export: 'Export Report'
         },
         common: {
-          optional: 'Optional'
-        }
+          optional: 'Optional',
+          buttons: {
+            selectImage: 'Select Image',
+            changeImage: 'Change Image',
+            removeImage: 'Remove Image'
+          },
+          errors: {
+            invalidImageType: 'Invalid image format. Please use JPG, PNG, or GIF.',
+            imageTooLarge: 'Image size should be less than 2MB.'
+          },
+          hints: {
+            imageRequirements: 'JPG, PNG or GIF, max 2MB'
+          }
+        },
+        months: {
+          january: 'January',
+          february: 'February',
+          march: 'March',
+          april: 'April',
+          may: 'May',
+          june: 'June',
+          july: 'July',
+          august: 'August',
+          september: 'September',
+          october: 'October',
+          november: 'November',
+          december: 'December'
+        },
+        pagination: {
+          page: 'Page',
+          of: 'of'
+        },
+        export: {
+          csv: 'Export CSV'
+        },
+        search: 'Search',
+        loading: 'Loading...'
       },
       common: {
         viewAll: 'View All',
@@ -102,7 +169,8 @@ const resources = {
         parents: 'Parents',
         accounts: 'Manage Accounts',
         settings: 'Settings',
-        logout: 'Logout'
+        logout: 'Logout',
+        attendanceAnalysis: 'Attendance Analysis'
       }
     }
   },
@@ -175,10 +243,53 @@ const resources = {
           reason: 'හේතුව',
           reasonPlaceholder: 'නොපැමිණීමේ/ප්‍රමාද වීමේ හේතුව',
           submitAttendance: 'පැමිණීම ඉදිරිපත් කරන්න',
-          markingSuccess: 'පැමිණීම සාර්ථකව සටහන් කර ඇත'
+          markingSuccess: 'පැමිණීම සාර්ථකව සටහන් කර ඇත',
+          monthlyAnalysis: 'මාසික පැමිණීමේ විශ්ලේෂණය',
+          month: 'මාසය',
+          year: 'වසර',
+          totalStudents: 'මුළු සිසුන් සංඛ්‍යාව',
+          averageAttendance: 'සාමාන්‍ය පැමිණීම',
+          highestAttendance: 'ආසන්නම පැමිණීමේ දිනය',
+          lowestAttendance: 'අඩුම පැමිණීමේ දිනය',
+          dailyAttendanceChart: 'දිනපතා පැමිණීමේ චාට්',
+          dailyBreakdown: 'දිනපතා විස්තර',
+          attendanceRate: 'පැමිණීමේ අනුපාතය',
+          weekend: 'අවසාන සතිය',
+          noDataFound: 'පැමිණීමේ දත්ත නොමැත',
+          markAllPresent: 'සියල්ලම පැමිණ ඇත',
+          markAllAbsent: 'සියල්ලම පැමිණ නැත',
+          markAllLate: 'සියල්ලම ප්‍රමාද වී',
+          sundaysOnly: 'ඉරිදා පමණි',
+          studentsShown: 'පෙන්වන සිසුන්',
+          noStudentsMatchSearch: 'සෙවුමට ගැලපෙන සිසුන් නැත',
+          studentAttendance: 'සිසුන්ගේ පැමිණීම',
+          startDate: 'ආරම්භක දිනය',
+          endDate: 'අවසාන දිනය',
+          searchPlaceholder: 'නමින් හෝ ID මගින් සොයන්න',
+          notSunday: 'ඉරිදා නොවේ',
+          sundayAttendanceInfo: 'පන්ති පැවැත්වෙන්නේ ඉරිදා දිනවල පමණි. පැමිණීම සටහන් කළ හැක්කේ ඉරිදා දින සඳහා පමණි.',
+          availableSundays: 'මෙම මාසයේ ඉරිදා දින',
+          sunday: 'ඉරිදා',
+          noSundays: 'ඉරිදා නැත',
+          noSundaysInMonth: 'මෙම මාසයේ ඉරිදා දින නොමැත',
+          sundayRequired: 'කරුණාකර ඉරිදා දිනයක් තෝරන්න',
+          studentDetails: 'සිසු විස්තර',
+          export: 'වාර්තාව අපනයනය කරන්න'
         },
         common: {
-          optional: 'අත්‍යවශ්‍ය නොවේ'
+          optional: 'අත්‍යවශ්‍ය නොවේ',
+          buttons: {
+            selectImage: 'Select Image',
+            changeImage: 'Change Image',
+            removeImage: 'Remove Image'
+          },
+          errors: {
+            invalidImageType: 'Invalid image format. Please use JPG, PNG, or GIF.',
+            imageTooLarge: 'Image size should be less than 2MB.'
+          },
+          hints: {
+            imageRequirements: 'JPG, PNG or GIF, max 2MB'
+          }
         }
       },
       common: {
@@ -206,7 +317,8 @@ const resources = {
         parents: 'දෙමාපියන්',
         accounts: 'ගිණුම් කළමනාකරණය',
         settings: 'සැකසුම්',
-        logout: 'පිටවන්න'
+        logout: 'පිටවන්න',
+        attendanceAnalysis: 'පැමිණීමේ විශ්ලේෂණය'
       }
     }
   }

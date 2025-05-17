@@ -80,6 +80,38 @@ exports.registerStudent = async (req, res) => {
   }
 };
 
+// @desc    Create student
+// @route   POST /api/students/create
+// @access  Private/Admin
+exports.createStudent = async (req, res) => {
+  try {
+    const studentData = req.body;
+    
+    // Handle file upload - add profile image URL if file was uploaded
+    if (req.file) {
+      // Create URL path to the uploaded file
+      const baseUrl = `${req.protocol}://${req.get('host')}`;
+      studentData.profileImageUrl = `${baseUrl}/uploads/students/${req.file.filename}`;
+    }
+    
+    // Continue with the student creation logic...
+    // ...
+    
+    // Return success response
+    return res.status(201).json({
+      success: true,
+      message: 'Student registered successfully',
+      data: createdStudent
+    });
+  } catch (error) {
+    console.error("Error creating student:", error);
+    return res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to register student'
+    });
+  }
+};
+
 // @desc    Get all students
 // @route   GET /api/students
 // @access  Private/Admin,Teacher
