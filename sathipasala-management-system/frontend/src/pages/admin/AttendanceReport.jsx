@@ -7,237 +7,327 @@ import {
   FaCalendarAlt, 
   FaUserAlt, 
   FaFilter,
-  FaSeedling // Replace FaFlower with FaSeedling or another appropriate icon
+  FaSeedling
 } from 'react-icons/fa';
 import { jsPDF } from 'jspdf';
 import 'jspdf-autotable';
 
 const AttendanceReport = () => {
-  const { t } = useTranslation();
+  const { i18n } = useTranslation();
+  const currentLang = i18n.language || 'en';
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);ue);
+  const [error, setError] = useState(null);
   const [reportData, setReportData] = useState([]);
-  const [students, setStudents] = useState([]);[]);
   const [students, setStudents] = useState([]);
   const [filters, setFilters] = useState({
-    startDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0], // First day of current month
-    endDate: new Date().toISOString().split('T')[0], // TodaygetMonth(), 1).toISOString().split('T')[0], // First day of current month
-    classYear: '',ate().toISOString().split('T')[0], // Today
+    startDate: new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0],
+    endDate: new Date().toISOString().split('T')[0],
+    classYear: '',
     classCode: '',
     studentId: '',
     searchTerm: '',
-    reportType: 'summary' // summary, student, class
-  });eportType: 'summary' // summary, student, class
+    reportType: 'summary'
   });
+
+  // Simple labels based on language
+  const L = {
+    report: currentLang === 'si' ? "පැමිණීමේ වාර්තාව" : "Attendance Report",
+    exportCSV: currentLang === 'si' ? "CSV අපනයනය කරන්න" : "Export CSV",
+    exportPDF: currentLang === 'si' ? "PDF අපනයනය කරන්න" : "Export PDF",
+    summaryReport: currentLang === 'si' ? "සාරාංශ වාර්තාව" : "Summary Report",
+    studentReport: currentLang === 'si' ? "සිසු වාර්තාව" : "Student Report",
+    classReport: currentLang === 'si' ? "පන්ති වාර්තාව" : "Class Report",
+    startDate: currentLang === 'si' ? "ආරම්භක දිනය" : "Start Date",
+    endDate: currentLang === 'si' ? "අවසාන දිනය" : "End Date",
+    classYear: currentLang === 'si' ? "පන්ති වසර" : "Class Year",
+    class: currentLang === 'si' ? "පන්තිය" : "Class",
+    allClasses: currentLang === 'si' ? "සියළුම පන්ති" : "All Classes",
+    search: currentLang === 'si' ? "සොයන්න" : "Search",
+    searchPlaceholder: currentLang === 'si' ? "නමින් හෝ ID මගින් සොයන්න" : "Search by name or ID",
+    selectStudent: currentLang === 'si' ? "සිසුවා තෝරන්න" : "Select Student",
+    select: currentLang === 'si' ? "තෝරන්න" : "Select",
+    summary: currentLang === 'si' ? "සාරාංශය" : "Summary",
+    totalDays: currentLang === 'si' ? "මුළු දින ගණන" : "Total Days",
+    avgPresent: currentLang === 'si' ? "සාමාන්‍ය පැමිණීම" : "Average Present",
+    avgAbsent: currentLang === 'si' ? "සාමාන්‍ය නොපැමිණීම" : "Average Absent",
+    avgLate: currentLang === 'si' ? "සාමාන්‍ය ප්‍රමාද" : "Average Late",
+    avgFlowers: currentLang === 'si' ? "සාමාන්‍ය මල් පූජා" : "Average Flowers",
+    date: currentLang === 'si' ? "දිනය" : "Date",
+    totalStudents: currentLang === 'si' ? "මුළු සිසුන්" : "Total Students",
+    present: currentLang === 'si' ? "පැමිණ සිටි" : "Present",
+    absent: currentLang === 'si' ? "පැමිණ නොසිටි" : "Absent",
+    late: currentLang === 'si' ? "ප්‍රමාද වූ" : "Late",
+    flowerOfferings: currentLang === 'si' ? "මල් පූජා" : "Flower Offerings",
+    attendanceRate: currentLang === 'si' ? "පැමිණීමේ අනුපාතය" : "Attendance Rate",
+    status: currentLang === 'si' ? "තත්ත්වය" : "Status",
+    reason: currentLang === 'si' ? "හේතුව" : "Reason",
+    flowerOffering: currentLang === 'si' ? "මල් පූජාව" : "Flower Offering",
+    noData: currentLang === 'si' ? "දත්ත නොමැත" : "No data available"
+  };
+
+  // Class labels
+  const CLASS_LABELS = {
+    ADH: { en: "Adhiṭṭhāna", si: "අධිඨාන" },
+    MET: { en: "Mettā", si: "මෙත්තා" },
+    KHA: { en: "Khanti", si: "ඛන්ති" },
+    NEK: { en: "Nekkhamma", si: "නෙක්කම්ම" }
+  };
+
   // Fetch students based on filters
-  useEffect(() => { based on filters
+  useEffect(() => {
     const fetchStudents = async () => {
-      try {etchStudents = async () => {
+      try {
         const queryParams = new URLSearchParams();
         if (filters.classYear) queryParams.append('classYear', filters.classYear);
         if (filters.classCode) queryParams.append('classCode', filters.classCode);
-        if (filters.classCode) queryParams.append('classCode', filters.classCode);
+        
         const response = await axios.get(`/api/students?${queryParams.toString()}`, {
-          headers: {se = await axios.get(`/api/students?${queryParams.toString()}`, {
+          headers: {
             Authorization: `Bearer ${localStorage.getItem('token')}`
-          } Authorization: `Bearer ${localStorage.getItem('token')}`
+          }
         });
-        });
+        
         setStudents(response.data.data || []);
-      } catch (error) {ponse.data.data || []);
+      } catch (error) {
         console.error('Error fetching students:', error);
-        setError(error.response?.data?.message || 'Failed to fetch students');
-      } setError(error.response?.data?.message || 'Failed to fetch students');
-    };}
+        setError(currentLang === 'si' ? "සිසුන් ලබා ගැනීමේ දෝෂයකි" : "Failed to fetch students");
+      }
     };
+    
     fetchStudents();
-  }, [filters.classYear, filters.classCode]);
-  }, [filters.classYear, filters.classCode]);
+  }, [filters.classYear, filters.classCode, currentLang]);
+
   // Fetch report data
-  useEffect(() => {ata
+  useEffect(() => {
     const fetchReportData = async () => {
-      try {etchReportData = async () => {
-        setLoading(true);
+      try {
         setLoading(true);
         const queryParams = new URLSearchParams();
         queryParams.append('startDate', filters.startDate);
-        queryParams.append('endDate', filters.endDate);te);
+        queryParams.append('endDate', filters.endDate);
+        
         if (filters.classYear) queryParams.append('classYear', filters.classYear);
         if (filters.classCode) queryParams.append('classCode', filters.classCode);
         if (filters.studentId) queryParams.append('studentId', filters.studentId);
-        if (filters.studentId) queryParams.append('studentId', filters.studentId);
+        
         let endpoint = '/api/attendance/report';
         if (filters.reportType === 'student' && filters.studentId) {
           endpoint = `/api/attendance/student/${filters.studentId}`;
-        } endpoint = `/api/attendance/student/${filters.studentId}`;
         }
+        
+        console.log(`Fetching report data from: ${endpoint}?${queryParams.toString()}`);
+        
         const response = await axios.get(`${endpoint}?${queryParams.toString()}`, {
-          headers: {se = await axios.get(`${endpoint}?${queryParams.toString()}`, {
+          headers: {
             Authorization: `Bearer ${localStorage.getItem('token')}`
-          } Authorization: `Bearer ${localStorage.getItem('token')}`
+          }
         });
-        });
+        
+        console.log('Report data response:', response.data);
         setReportData(response.data.data || []);
-      } catch (error) {esponse.data.data || []);
+      } catch (error) {
         console.error('Error fetching report data:', error);
-        setError(error.response?.data?.message || 'Failed to fetch report data');
-      } finally {error.response?.data?.message || 'Failed to fetch report data';
+        setError(currentLang === 'si' ? "වාර්තා දත්ත ලබා ගැනීමට අසමත් විය" : "Failed to fetch report data");
+        
+        // Generate mock data for development
+        if (process.env.NODE_ENV !== 'production') {
+          console.log('Generating mock data for development');
+          const mockData = generateMockData();
+          setReportData(mockData);
+        }
+      } finally {
         setLoading(false);
-      } setLoading(false);
-    };}
+      }
     };
+    
     fetchReportData();
-  }, [filters]);ata();
-  }, [filters]);
+  }, [filters, currentLang]);
+
+  // Generate mock data for development
+  const generateMockData = () => {
+    if (filters.reportType === 'student') {
+      // Generate student-specific mock data
+      return Array.from({ length: 10 }, (_, i) => {
+        const date = new Date();
+        date.setDate(date.getDate() - i);
+        return {
+          date: date.toISOString().split('T')[0],
+          status: ['present', 'absent', 'late'][Math.floor(Math.random() * 3)],
+          reason: Math.random() > 0.7 ? 'Sick leave' : '',
+          flowerOffering: { brought: Math.random() > 0.6 }
+        };
+      });
+    } else {
+      // Generate summary mock data
+      return Array.from({ length: 5 }, (_, i) => {
+        const date = new Date();
+        date.setDate(date.getDate() - i);
+        const total = 50;
+        const present = Math.floor(Math.random() * 20) + 25;
+        const late = Math.floor(Math.random() * 5);
+        const absent = total - present - late;
+        
+        return {
+          date: date.toISOString().split('T')[0],
+          total,
+          present,
+          absent,
+          late,
+          flowerOfferings: Math.floor(Math.random() * 15),
+          attendanceRate: ((present + late) / total * 100).toFixed(1)
+        };
+      });
+    }
+  };
+
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
     setFilters(prev => ({ ...prev, [name]: value }));
-  };setFilters(prev => ({ ...prev, [name]: value }));
   };
+
   const handleStudentSelect = (e) => {
     const selectedId = e.target.value;
-    setFilters(prev => ({target.value;
-      ...prev,(prev => ({
+    setFilters(prev => ({
+      ...prev,
       studentId: selectedId,
       reportType: selectedId ? 'student' : 'summary'
-    }));portType: selectedId ? 'student' : 'summary'
-  };}));
+    }));
   };
+
   const handleSearch = (e) => {
     setFilters(prev => ({ ...prev, searchTerm: e.target.value }));
-  };setFilters(prev => ({ ...prev, searchTerm: e.target.value }));
   };
+
   // Filter students by search term
   const filteredStudents = useMemo(() => {
-    return students.filter(student => => {
-      !filters.searchTerm ||tudent =>
+    return students.filter(student => 
+      !filters.searchTerm ||
       student.name.en.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
       student.name.si?.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
-      student.studentId.toLowerCase().includes(filters.searchTerm.toLowerCase())||
-    );student.studentId.toLowerCase().includes(filters.searchTerm.toLowerCase())
+      student.studentId.toLowerCase().includes(filters.searchTerm.toLowerCase())
+    );
   }, [students, filters.searchTerm]);
-  }, [students, filters.searchTerm]);
+
   // Generate and download CSV
   const handleExportCSV = () => {
     if (!reportData.length) return;
-    if (!reportData.length) return;
+    
     let csvContent, filename;
-    let csvContent, filename;
+    
     if (filters.reportType === 'student') {
       // Student-specific attendance report
       const studentInfo = students.find(s => s._id === filters.studentId);
-      const studentInfo = students.find(s => s._id === filters.studentId);
-      const headers = ['Date', 'Status', 'Reason', 'Flower Offering'];
-      const rows = reportData.map(record => [son', 'Flower Offering'];
+      const headers = [L.date, L.status, L.reason, L.flowerOffering];
+      const rows = reportData.map(record => [
         new Date(record.date).toLocaleDateString(),
         record.status.charAt(0).toUpperCase() + record.status.slice(1),
-        record.reason || '',(0).toUpperCase() + record.status.slice(1),
+        record.reason || '',
         record.flowerOffering?.brought ? 'Yes' : 'No'
-      ]);ecord.flowerOffering?.brought ? 'Yes' : 'No'
       ]);
+      
       csvContent = [
         headers.join(','),
         ...rows.map(row => row.join(','))
-      ].join('\n');(row => row.join(','))
       ].join('\n');
+      
       filename = `${studentInfo?.studentId || 'student'}_attendance_${filters.startDate}_${filters.endDate}.csv`;
-    } else {me = `${studentInfo?.studentId || 'student'}_attendance_${filters.startDate}_${filters.endDate}.csv`;
+    } else {
       // Summary or class attendance report
-      const headers = ['Date', 'Total Students', 'Present', 'Absent', 'Late', 'Attendance Rate', 'Flower Offerings'];
-      const rows = reportData.map(day => [ents', 'Present', 'Absent', 'Late', 'Attendance Rate', 'Flower Offerings'];
+      const headers = [L.date, L.totalStudents, L.present, L.absent, L.late, L.attendanceRate, L.flowerOfferings];
+      const rows = reportData.map(day => [
         new Date(day.date).toLocaleDateString(),
-        day.total,ay.date).toLocaleDateString(),
+        day.total,
         day.present,
-        day.absent,,
-        day.late,t,
+        day.absent,
+        day.late,
         `${day.attendanceRate}%`,
-        day.flowerOfferings || 0,
-      ]);ay.flowerOfferings || 0
+        day.flowerOfferings || 0
       ]);
+      
       csvContent = [
         headers.join(','),
         ...rows.map(row => row.join(','))
-      ].join('\n');(row => row.join(','))
       ].join('\n');
+      
       filename = `attendance_report_${filters.startDate}_${filters.endDate}.csv`;
-    } filename = `attendance_report_${filters.startDate}_${filters.endDate}.csv`;
     }
+    
     // Create and download CSV file
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
-    link.setAttribute('href', url);ment('a');
+    link.setAttribute('href', url);
     link.setAttribute('download', filename);
-    document.body.appendChild(link);lename);
-    link.click();.appendChild(link);
+    document.body.appendChild(link);
+    link.click();
     document.body.removeChild(link);
-  };document.body.removeChild(link);
   };
+
   // Generate and download PDF
   const handleExportPDF = () => {
     if (!reportData.length) return;
-    if (!reportData.length) return;
+    
     const doc = new jsPDF();
-    const doc = new jsPDF();
+    
     // Add title
     doc.setFontSize(18);
-    doc.text('Attendance Report', doc.internal.pageSize.width / 2, 15, { align: 'center' });
-    doc.text('Attendance Report', doc.internal.pageSize.width / 2, 15, { align: 'center' });
+    doc.text(L.report, doc.internal.pageSize.width / 2, 15, { align: 'center' });
+    
     // Add report parameters
-    doc.setFontSize(10);ters
-    doc.text(`Period: ${new Date(filters.startDate).toLocaleDateString()} - ${new Date(filters.endDate).toLocaleDateString()}`, 14, 25);
-    doc.text(`Period: ${new Date(filters.startDate).toLocaleDateString()} - ${new Date(filters.endDate).toLocaleDateString()}`, 14, 25);
+    doc.setFontSize(10);
+    doc.text(`${L.startDate}: ${new Date(filters.startDate).toLocaleDateString()} - ${L.endDate}: ${new Date(filters.endDate).toLocaleDateString()}`, 14, 25);
+    
     if (filters.classYear) {
-      doc.text(`Class Year: ${filters.classYear}`, 14, 30);
-    } doc.text(`Class Year: ${filters.classYear}`, 14, 30);
+      doc.text(`${L.classYear}: ${filters.classYear}`, 14, 30);
     }
+    
     if (filters.classCode) {
-      const className = t(`classes.${filters.classCode}.name`) || filters.classCode;
-      doc.text(`Class: ${className}`, 14, 35);
-    } doc.text(`Class: ${t(`classes.${filters.classCode}.name`)}`, 14, 35);
+      const className = CLASS_LABELS[filters.classCode]?.[currentLang] || filters.classCode;
+      doc.text(`${L.class}: ${className}`, 14, 35);
     }
+    
     if (filters.studentId && filters.reportType === 'student') {
       const student = students.find(s => s._id === filters.studentId);
-      if (student) {= students.find(s => s._id === filters.studentId);
-        doc.text(`Student: ${student.name.en} (${student.studentId})`, 14, 40);
-      } doc.text(`Student: ${student.name.en} (${student.studentId})`, 14, 40);
-    } }
+      if (student) {
+        doc.text(`Student: ${student.name[currentLang] || student.name.en} (${student.studentId})`, 14, 40);
+      }
     }
+    
     // Add report data as table
     if (filters.reportType === 'student') {
-      doc.autoTable({tType === 'student') {
-        startY: 50,({
-        head: [['Date', 'Status', 'Reason', 'Flower Offering']],
-        body: reportData.map(record => [n', 'Flower Offering']],
+      doc.autoTable({
+        startY: 50,
+        head: [[L.date, L.status, L.reason, L.flowerOffering]],
+        body: reportData.map(record => [
           new Date(record.date).toLocaleDateString(),
           record.status.charAt(0).toUpperCase() + record.status.slice(1),
-          record.reason || '',(0).toUpperCase() + record.status.slice(1),
+          record.reason || '',
           record.flowerOffering?.brought ? 'Yes' : 'No'
-        ])record.flowerOffering?.brought ? 'Yes' : 'No'
-      });)
+        ])
       });
+      
       // Add summary statistics
       if (reportData.summary) {
-        doc.setFontSize(12);) {
-        doc.text('Attendance Summary', 14, doc.lastAutoTable.finalY + 15);
-        doc.text('Attendance Summary', 14, doc.lastAutoTable.finalY + 15);
+        doc.setFontSize(12);
+        doc.text(L.summary, 14, doc.lastAutoTable.finalY + 15);
+        
         doc.autoTable({
           startY: doc.lastAutoTable.finalY + 20,
-          head: [['Total Days', 'Present', 'Absent', 'Late', 'Attendance Rate', 'Flower Offerings']],
-          body: [['Total Days', 'Present', 'Absent', 'Late', 'Attendance Rate', 'Flower Offerings']],
+          head: [[L.totalDays, L.present, L.absent, L.late, L.attendanceRate, L.flowerOfferings]],
+          body: [[
             reportData.summary.total,
             reportData.summary.present,
-            reportData.summary.absent,,
-            reportData.summary.late,t,
+            reportData.summary.absent,
+            reportData.summary.late,
             `${reportData.summary.attendanceRate}%`,
-            reportData.summary.flowerOfferings || 0,
-          ]]reportData.summary.flowerOfferings || 0
-        });]
-      } });
+            reportData.summary.flowerOfferings || 0
+          ]]
+        });
+      }
     } else {
       doc.autoTable({
-        startY: 50,({
-        head: [['Date', 'Total', 'Present', 'Absent', 'Late', 'Rate', 'Flowers']],
+        startY: 50,
+        head: [[L.date, L.totalStudents, L.present, L.absent, L.late, L.attendanceRate, L.flowerOfferings]],
         body: reportData.map(day => [
           new Date(day.date).toLocaleDateString(),
           day.total || 0,
@@ -246,402 +336,410 @@ const AttendanceReport = () => {
           day.late || 0,
           `${day.attendanceRate || 0}%`,
           day.flowerOfferings || 0
-        ])day.flowerOfferings || 0
-      });)
-    } });
+        ])
+      });
     }
+    
     // Save PDF
     doc.save(`attendance_report_${filters.startDate}_${filters.endDate}.pdf`);
-  };doc.save(`attendance_report_${filters.startDate}_${filters.endDate}.pdf`);
   };
+
   return (
     <div className="space-y-6">
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 md:mb-0">
-            {t('attendance.report')}t-semibold text-gray-900 dark:text-white mb-4 md:mb-0">
-          </h2>'attendance.report')}
+            {L.report}
+          </h2>
           <div className="flex space-x-2">
-            <buttonsName="flex space-x-2">
+            <button
               onClick={handleExportCSV}
               disabled={!reportData.length}
               className="flex items-center px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors disabled:opacity-50"
-            > className="flex items-center px-3 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors disabled:opacity-50"
+            >
               <FaFileCsv className="mr-2" />
-              {t('attendance.exportCSV')} />
-            </button>endance.exportCSV')}
-            <buttonn>
+              {L.exportCSV}
+            </button>
+            <button
               onClick={handleExportPDF}
               disabled={!reportData.length}
               className="flex items-center px-3 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors disabled:opacity-50"
-            > className="flex items-center px-3 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors disabled:opacity-50"
+            >
               <FaFilePdf className="mr-2" />
-              {t('attendance.exportPDF')} />
-            </button>endance.exportPDF')}
-          </div>tton>
-        </div>v>
+              {L.exportPDF}
+            </button>
+          </div>
         </div>
+        
         {/* Report Type Selection */}
-        <div className="mb-6">ion */}
+        <div className="mb-6">
           <div className="border-b border-gray-200 dark:border-gray-700 mb-4">
-            <nav className="-mb-px flex space-x-6">dark:border-gray-700 mb-4">
-              <buttonsName="-mb-px flex space-x-6">
+            <nav className="-mb-px flex space-x-6">
+              <button
                 onClick={() => setFilters(prev => ({ ...prev, reportType: 'summary', studentId: '' }))}
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${e: 'summary', studentId: '' }))}
-                  filters.reportType === 'summary'ont-medium text-sm ${
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  filters.reportType === 'summary'
                     ? 'border-blue-500 text-blue-600 dark:text-blue-400'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-300'
-                }`} : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-300'
-              > }`}
-                {t('attendance.summaryReport')}
-              </button>endance.summaryReport')}
-              <buttonn>
+                }`}
+              >
+                {L.summaryReport}
+              </button>
+              <button
                 onClick={() => setFilters(prev => ({ ...prev, reportType: 'student' }))}
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${e: 'student' }))}
-                  filters.reportType === 'student'ont-medium text-sm ${
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  filters.reportType === 'student'
                     ? 'border-blue-500 text-blue-600 dark:text-blue-400'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-300'
-                }`} : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-300'
-              > }`}
-                {t('attendance.studentReport')}
-              </button>endance.studentReport')}
-              <buttonn>
+                }`}
+              >
+                {L.studentReport}
+              </button>
+              <button
                 onClick={() => setFilters(prev => ({ ...prev, reportType: 'class', studentId: '' }))}
-                className={`py-2 px-1 border-b-2 font-medium text-sm ${e: 'class', studentId: '' }))}
-                  filters.reportType === 'class' font-medium text-sm ${
+                className={`py-2 px-1 border-b-2 font-medium text-sm ${
+                  filters.reportType === 'class'
                     ? 'border-blue-500 text-blue-600 dark:text-blue-400'
                     : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-300'
-                }`} : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 dark:text-gray-300'
-              > }`}
-                {t('attendance.classReport')}
-              </button>endance.classReport')}
-            </nav>tton>
-          </div>v>
-        </div>v>
+                }`}
+              >
+                {L.classReport}
+              </button>
+            </nav>
+          </div>
         </div>
+        
         {/* Filters */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-          <div>assName="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              {t('attendance.startDate')}sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            </label>tendance.startDate')}
+              {L.startDate}
+            </label>
             <div className="relative">
-              <inputssName="relative">
+              <input
                 type="date"
                 name="startDate"
                 value={filters.startDate}
                 onChange={handleFilterChange}
                 className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-              />className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+              />
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <FaCalendarAlt className="h-4 w-4 text-gray-400" />tems-center pointer-events-none">
-              </div>alendarAlt className="h-4 w-4 text-gray-400" />
-            </div>v>
-          </div>v>
+                <FaCalendarAlt className="h-4 w-4 text-gray-400" />
+              </div>
+            </div>
           </div>
+          
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              {t('attendance.endDate')}t-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            </label>tendance.endDate')}
+              {L.endDate}
+            </label>
             <div className="relative">
-              <inputssName="relative">
+              <input
                 type="date"
                 name="endDate"
                 value={filters.endDate}
                 onChange={handleFilterChange}
                 className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-              />className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+              />
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <FaCalendarAlt className="h-4 w-4 text-gray-400" />tems-center pointer-events-none">
-              </div>alendarAlt className="h-4 w-4 text-gray-400" />
-            </div>v>
-          </div>v>
+                <FaCalendarAlt className="h-4 w-4 text-gray-400" />
+              </div>
+            </div>
           </div>
+          
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              {t('attendance.classYear')}sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            </label>tendance.classYear')}
+              {L.classYear}
+            </label>
             <div className="relative">
-              <inputssName="relative">
+              <input
                 type="text"
                 name="classYear"
                 value={filters.classYear}
                 onChange={handleFilterChange}
-                placeholder="2023"lterChange}
+                placeholder="2023"
                 className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-              />className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+              />
               <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                <FaFilter className="h-4 w-4 text-gray-400" />lex items-center pointer-events-none">
-              </div>ilter className="h-4 w-4 text-gray-400" />
-            </div>v>
-          </div>v>
+                <FaFilter className="h-4 w-4 text-gray-400" />
+              </div>
+            </div>
           </div>
+          
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              {t('attendance.class')}ext-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            </label>tendance.class')}
-            <select>
+              {L.class}
+            </label>
+            <select
               name="classCode"
               value={filters.classCode}
               onChange={handleFilterChange}
               className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-            > className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-              <option value="">{t('attendance.allClasses')}</option>
-              <option value="ADH">{t('classes.ADH.name')}</option>n>
-              <option value="MET">{t('classes.MET.name')}</option>
-              <option value="KHA">{t('classes.KHA.name')}</option>
-              <option value="NEK">{t('classes.NEK.name')}</option>
-            </select> value="NEK">{t('classes.NEK.name')}</option>
-          </div>lect>
-        </div>v>
+            >
+              <option value="">{L.allClasses}</option>
+              <option value="ADH">{CLASS_LABELS.ADH[currentLang]}</option>
+              <option value="MET">{CLASS_LABELS.MET[currentLang]}</option>
+              <option value="KHA">{CLASS_LABELS.KHA[currentLang]}</option>
+              <option value="NEK">{CLASS_LABELS.NEK[currentLang]}</option>
+            </select>
+          </div>
         </div>
+        
         {/* Student Selection (only for student report) */}
-        {filters.reportType === 'student' && (t report) */}
-          <div className="mb-6">'student' && (
+        {filters.reportType === 'student' && (
+          <div className="mb-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="col-span-1">-1 md:grid-cols-3 gap-4">
+              <div className="col-span-1">
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  {t('attendance.search')}xt-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                </label>tendance.search')}
+                  {L.search}
+                </label>
                 <div className="relative">
-                  <inputssName="relative">
+                  <input
                     type="text"
                     value={filters.searchTerm}
-                    onChange={handleSearch}rm}
-                    placeholder={t('attendance.searchPlaceholder')}
+                    onChange={handleSearch}
+                    placeholder={L.searchPlaceholder}
                     className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  />className="block w-full pl-10 pr-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  />
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <FaUserAlt className="h-4 w-4 text-gray-400" />ex items-center pointer-events-none">
-                  </div>serAlt className="h-4 w-4 text-gray-400" />
-                </div>v>
-              </div>v>
+                    <FaUserAlt className="h-4 w-4 text-gray-400" />
+                  </div>
+                </div>
               </div>
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  {t('attendance.selectStudent')}ont-medium text-gray-700 dark:text-gray-300 mb-1">
-                </label>tendance.selectStudent')}
-                <select>
+                  {L.selectStudent}
+                </label>
+                <select
                   value={filters.studentId}
                   onChange={handleStudentSelect}
                   className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                > className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                  <option value="">{t('common.select')}</option>
-                  {filteredStudents.map(student => (}</option>
+                >
+                  <option value="">{L.select}</option>
+                  {filteredStudents.map(student => (
                     <option key={student._id} value={student._id}>
-                      {student.name.en} ({student.studentId})_id}>
-                    </option>t.name.en} ({student.studentId})
-                  ))}/option>
+                      {student.name[currentLang] || student.name.en} ({student.studentId})
+                    </option>
+                  ))}
                 </select>
-              </div>lect>
-            </div>v>
-          </div>v>
-        )}</div>
+              </div>
+            </div>
+          </div>
+        )}
+        
         {/* Report Data Table */}
-        <div>eport Data Table */}
+        <div>
           {loading ? (
             <div className="text-center py-4">
-              <span className="loader"></span>
-            </div>n className="loader"></span>
+              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500 mx-auto"></div>
+            </div>
           ) : error ? (
             <div className="text-red-500 text-center py-4">
-              {error}sName="text-red-500 text-center py-4">
-            </div>or}
-          ) : (iv>
+              {error}
+            </div>
+          ) : (
             <div>
               {filters.reportType === 'summary' && (
                 <div className="bg-gray-50 dark:bg-gray-700 rounded-lg p-4 mb-6">
                   <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                    {t('attendance.summary')}-semibold text-gray-900 dark:text-white mb-4">
-                  </h3>'attendance.summary')}
+                    {L.summary}
                   </h3>
+                  
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
                       <h4 className="font-medium text-gray-900 dark:text-white mb-2">
-                        {t('attendance.totalDays')}xt-gray-900 dark:text-white mb-2">
-                      </h4>'attendance.totalDays')}
+                        {L.totalDays}
+                      </h4>
                       <p className="text-2xl font-bold text-gray-800 dark:text-gray-200">
-                        {reportData.length}l font-bold text-gray-800 dark:text-gray-200">
-                      </p>eportData.length}
+                        {reportData.length}
+                      </p>
                     </div>
-                    </div>
+                    
                     <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
                       <h4 className="font-medium text-gray-900 dark:text-white mb-2">
-                        {t('attendance.avgPresent')}t-gray-900 dark:text-white mb-2">
-                      </h4>'attendance.avgPresent')}
+                        {L.avgPresent}
+                      </h4>
                       <p className="text-2xl font-bold text-gray-800 dark:text-gray-200">
                         {reportData.length > 0 
-                          ? `${(reportData.reduce((sum, day) => sum + day.present, 0) / reportData.length).toFixed(1)} (${((reportData.reduce((sum, day) => sum + day.present, 0) / (reportData.reduce((sum, day) => sum + day.total, 0) || 1)) * 100).toFixed(1)}%)` eportData.reduce((sum, day) => sum + day.present, 0) / reportData.length} ({((reportData.reduce((sum, day) => sum + day.present, 0) / reportData.reduce((sum, day) => sum + day.total, 0)) * 100).toFixed(1)}%)
+                          ? `${(reportData.reduce((sum, day) => sum + day.present, 0) / reportData.length).toFixed(1)} (${((reportData.reduce((sum, day) => sum + day.present, 0) / (reportData.reduce((sum, day) => sum + day.total, 0) || 1)) * 100).toFixed(1)}%)`
                           : '0 (0%)'
-                        }</div>
+                        }
                       </p>
                     </div>
-                    xt-gray-900 dark:text-white mb-2">
-                    <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">'attendance.avgAbsent')}
+                    
+                    <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
                       <h4 className="font-medium text-gray-900 dark:text-white mb-2">
-                        {t('attendance.avgAbsent')}
-                      </h4>eportData.reduce((sum, day) => sum + day.absent, 0) / reportData.length} ({((reportData.reduce((sum, day) => sum + day.absent, 0) / reportData.reduce((sum, day) => sum + day.total, 0)) * 100).toFixed(1)}%)
+                        {L.avgAbsent}
+                      </h4>
                       <p className="text-2xl font-bold text-gray-800 dark:text-gray-200">
-                        {reportData.reduce((sum, day) => sum + day.absent, 0) / reportData.length} ({((reportData.reduce((sum, day) => sum + day.absent, 0) / reportData.reduce((sum, day) => sum + day.total, 0)) * 100).toFixed(1)}%)</div>
+                        {reportData.length > 0
+                          ? `${(reportData.reduce((sum, day) => sum + day.absent, 0) / reportData.length).toFixed(1)} (${((reportData.reduce((sum, day) => sum + day.absent, 0) / (reportData.reduce((sum, day) => sum + day.total, 0) || 1)) * 100).toFixed(1)}%)`
+                          : '0 (0%)'
+                        }
                       </p>
                     </div>
-                    text-gray-900 dark:text-white mb-2">
-                    <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">'attendance.avgLate')}
+                    
+                    <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
                       <h4 className="font-medium text-gray-900 dark:text-white mb-2">
-                        {t('attendance.avgLate')}
-                      </h4>eportData.reduce((sum, day) => sum + day.late, 0) / reportData.length} ({((reportData.reduce((sum, day) => sum + day.late, 0) / reportData.reduce((sum, day) => sum + day.total, 0)) * 100).toFixed(1)}%)
+                        {L.avgLate}
+                      </h4>
                       <p className="text-2xl font-bold text-gray-800 dark:text-gray-200">
-                        {reportData.reduce((sum, day) => sum + day.late, 0) / reportData.length} ({((reportData.reduce((sum, day) => sum + day.late, 0) / reportData.reduce((sum, day) => sum + day.total, 0)) * 100).toFixed(1)}%)</div>
+                        {reportData.length > 0
+                          ? `${(reportData.reduce((sum, day) => sum + day.late, 0) / reportData.length).toFixed(1)} (${((reportData.reduce((sum, day) => sum + day.late, 0) / (reportData.reduce((sum, day) => sum + day.total, 0) || 1)) * 100).toFixed(1)}%)`
+                          : '0 (0%)'
+                        }
                       </p>
                     </div>
-                    t-gray-900 dark:text-white mb-2">
-                    <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">'attendance.avgFlowers')}
+                    
+                    <div className="bg-white dark:bg-gray-800 rounded-lg p-4 shadow">
                       <h4 className="font-medium text-gray-900 dark:text-white mb-2">
-                        {t('attendance.avgFlowers')}
-                      </h4>eportData.reduce((sum, day) => sum + (day.flowerOfferings || 0), 0) / reportData.length} ({((reportData.reduce((sum, day) => sum + (day.flowerOfferings || 0), 0) / reportData.reduce((sum, day) => sum + day.total, 0)) * 100).toFixed(1)}%)
+                        {L.avgFlowers}
+                      </h4>
                       <p className="text-2xl font-bold text-gray-800 dark:text-gray-200">
-                        {reportData.reduce((sum, day) => sum + (day.flowerOfferings || 0), 0) / reportData.length} ({((reportData.reduce((sum, day) => sum + (day.flowerOfferings || 0), 0) / reportData.reduce((sum, day) => sum + day.total, 0)) * 100).toFixed(1)}%)v>
-                      </p>v>
-                    </div></div>
-                  </div>)}
+                        {reportData.length > 0
+                          ? `${(reportData.reduce((sum, day) => sum + (day.flowerOfferings || 0), 0) / reportData.length).toFixed(1)} (${((reportData.reduce((sum, day) => sum + (day.flowerOfferings || 0), 0) / (reportData.reduce((sum, day) => sum + day.total, 0) || 1)) * 100).toFixed(1)}%)`
+                          : '0 (0%)'
+                        }
+                      </p>
+                    </div>
+                  </div>
                 </div>
-              )}gray-700 mb-6">
-              -200 dark:divide-gray-700">
-              <div className="overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700 mb-6"> className="bg-gray-50 dark:bg-gray-800">
+              )}
+              
+              <div className="overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700 mb-6">
                 <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                  <thead className="bg-gray-50 dark:bg-gray-800">ters.reportType === 'summary' && (
+                  <thead className="bg-gray-50 dark:bg-gray-800">
                     <tr>
-                      {filters.reportType === 'summary' && (e="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        <>'attendance.date')}
+                      {filters.reportType === 'summary' && (
+                        <>
                           <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            {t('attendance.date')}y-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          </th>'attendance.totalStudents')}
+                            {L.date}
+                          </th>
                           <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            {t('attendance.totalStudents')}px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          </th>'attendance.present')}
+                            {L.totalStudents}
+                          </th>
                           <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            {t('attendance.present')}"px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          </th>'attendance.absent')}
+                            {L.present}
+                          </th>
                           <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            {t('attendance.absent')}e="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          </th>'attendance.late')}
+                            {L.absent}
+                          </th>
                           <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            {t('attendance.late')}3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          </th>'attendance.flowerOfferings')}
+                            {L.late}
+                          </th>
                           <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            {t('attendance.flowerOfferings')}-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          </th>'attendance.attendanceRate')}
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">/th>
-                            {t('attendance.attendanceRate')}</>
-                          </th>)}
-                        </>
-                      )}ters.reportType === 'student' && (
-                      
-                      {filters.reportType === 'student' && (e="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                        <>'attendance.date')}
+                            {L.flowerOfferings}
+                          </th>
                           <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            {t('attendance.date')}"px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          </th>'attendance.status')}
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            {t('attendance.status')}"px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          </th>'attendance.reason')}
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                            {t('attendance.reason')}-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                          </th>'attendance.flowerOffering')}
-                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">/th>
-                            {t('attendance.flowerOffering')}</>
+                            {L.attendanceRate}
                           </th>
                         </>
                       )}
-                    </tr>ide-y divide-gray-200 dark:bg-gray-800 dark:divide-gray-700">
-                  </thead>tData.length === 0 ? (
+                      
+                      {filters.reportType === 'student' && (
+                        <>
+                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            {L.date}
+                          </th>
+                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            {L.status}
+                          </th>
+                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            {L.reason}
+                          </th>
+                          <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                            {L.flowerOffering}
+                          </th>
+                        </>
+                      )}
+                    </tr>
+                  </thead>
                   <tbody className="bg-white divide-y divide-gray-200 dark:bg-gray-800 dark:divide-gray-700">
-                    {reportData.length === 0 ? (eportType === 'summary' ? 7 : 4} className="px-6 py-4 text-center text-gray-500">
-                      <tr>'common.noData')}
-                        <td colSpan={filters.reportType === 'summary' ? 7 : 4} className="px-6 py-4 text-center text-gray-500">d>
-                          {t('common.noData')}r>
+                    {reportData.length === 0 ? (
+                      <tr>
+                        <td colSpan={filters.reportType === 'summary' ? 7 : 4} className="px-6 py-4 text-center text-gray-500">
+                          {L.noData}
                         </td>
-                      </tr>day, idx) => (
+                      </tr>
                     ) : (
-                      reportData.map((day, idx) => (ters.reportType === 'summary' && (
-                        <tr key={idx}>
+                      reportData.map((day, idx) => (
+                        <tr key={`${day.date}-${idx}`}>
                           {filters.reportType === 'summary' && (
-                            <>text-white">
-                              <td className="px-6 py-4 whitespace-nowrap"> Date(day.date).toLocaleDateString()}
-                                <div className="text-sm text-gray-900 dark:text-white">iv>
+                            <>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm text-gray-900 dark:text-white">
                                   {new Date(day.date).toLocaleDateString()}
                                 </div>
-                              </td>e="text-sm text-gray-900 dark:text-white">
-                              <td className="px-6 py-4 whitespace-nowrap">.total}
-                                <div className="text-sm text-gray-900 dark:text-white">iv>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm text-gray-900 dark:text-white">
                                   {day.total}
                                 </div>
-                              </td>"text-sm text-gray-900 dark:text-white">
-                              <td className="px-6 py-4 whitespace-nowrap">.present}
-                                <div className="text-sm text-gray-900 dark:text-white">iv>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm text-gray-900 dark:text-white">
                                   {day.present}
                                 </div>
-                              </td>="text-sm text-gray-900 dark:text-white">
-                              <td className="px-6 py-4 whitespace-nowrap">.absent}
-                                <div className="text-sm text-gray-900 dark:text-white">iv>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm text-gray-900 dark:text-white">
                                   {day.absent}
                                 </div>
-                              </td>me="text-sm text-gray-900 dark:text-white">
-                              <td className="px-6 py-4 whitespace-nowrap">.late}
-                                <div className="text-sm text-gray-900 dark:text-white">iv>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm text-gray-900 dark:text-white">
                                   {day.late}
                                 </div>
-                              </td>-gray-900 dark:text-white">
-                              <td className="px-6 py-4 whitespace-nowrap">.flowerOfferings || 0}
-                                <div className="text-sm text-gray-900 dark:text-white">iv>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm text-gray-900 dark:text-white">
                                   {day.flowerOfferings || 0}
                                 </div>
-                              </td> text-gray-900 dark:text-white">
-                              <td className="px-6 py-4 whitespace-nowrap">.attendanceRate}%
-                                <div className="text-sm text-gray-900 dark:text-white">iv>
-                                  {day.attendanceRate}%/td>
-                                </div></>
-                              </td>)}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm text-gray-900 dark:text-white">
+                                  {day.attendanceRate}%
+                                </div>
+                              </td>
                             </>
-                          )}ters.reportType === 'student' && (
+                          )}
                           
                           {filters.reportType === 'student' && (
-                            <>text-white">
-                              <td className="px-6 py-4 whitespace-nowrap"> Date(day.date).toLocaleDateString()}
-                                <div className="text-sm text-gray-900 dark:text-white">iv>
+                            <>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm text-gray-900 dark:text-white">
                                   {new Date(day.date).toLocaleDateString()}
                                 </div>
                               </td>
-                              <td className="px-6 py-4 whitespace-nowrap">.status.charAt(0).toUpperCase() + day.status.slice(1)}
-                                <div className="text-sm text-gray-900 dark:text-white">iv>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm text-gray-900 dark:text-white">
                                   {day.status.charAt(0).toUpperCase() + day.status.slice(1)}
                                 </div>
-                              </td>sm text-gray-900 dark:text-white">
-                              <td className="px-6 py-4 whitespace-nowrap">.reason || '-'}
-                                <div className="text-sm text-gray-900 dark:text-white">iv>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm text-gray-900 dark:text-white">
                                   {day.reason || '-'}
                                 </div>
-                              </td>t-white">
-                              <td className="px-6 py-4 whitespace-nowrap">.flowerOffering?.brought ? 'Yes' : 'No'}
-                                <div className="text-sm text-gray-900 dark:text-white">iv>
-                                  {day.flowerOffering?.brought ? 'Yes' : 'No'}/td>
-                                </div></>
                               </td>
-                            </></tr>
-                          )} ))
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="text-sm text-gray-900 dark:text-white">
+                                  {day.flowerOffering?.brought ? 'Yes' : 'No'}
+                                </div>
+                              </td>
+                            </>
+                          )}
                         </tr>
-                      ))y>
-                    }ble>
-                  </tbody>v>
-                </table></div>
+                      ))
+                    )}
+                  </tbody>
+                </table>
               </div>
-            </div>v>
-          )}v>
-        </div></div>
-      </div>);
-    </div>};
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
   );
+};
 
-
-
-export default AttendanceReport;};
+export default AttendanceReport;

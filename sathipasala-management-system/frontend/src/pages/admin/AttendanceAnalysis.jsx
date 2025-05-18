@@ -205,9 +205,16 @@ const AttendanceAnalysis = () => {
   // Fetch or generate attendance data
   const fetchAttendance = useCallback(async (studentsList) => {
     try {
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error('Authentication token not found');
+      }
+      
+      console.log(`Fetching attendance data for year: ${filters.year}, month: ${filters.month}`);
+      
       const response = await axios.get('/api/attendance/report', {
         headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`
+          Authorization: `Bearer ${token}`
         },
         params: {
           year: filters.year,
@@ -216,6 +223,7 @@ const AttendanceAnalysis = () => {
         }
       });
       
+      console.log("Attendance response:", response.data);
       if (response.data?.data) {
         setAttendanceData(response.data.data);
         // Calculate summary stats
@@ -287,14 +295,18 @@ const AttendanceAnalysis = () => {
       setFlowerData([]);
       setError(null);
       
+      console.log('Fetching data with filters:', filters);
+      
       try {
         // First get students
         const studentsData = await fetchStudents();
+        console.log(`Retrieved ${studentsData.length} students`);
+        
         // Then get attendance based on students
         await fetchAttendance(studentsData);
       } catch (error) {
         console.error("Error in data fetching:", error);
-        setError(L.errorFetch);
+        setError(`Error: ${error.message || L.errorFetch}`);
         setLoading(false);
       }
     };

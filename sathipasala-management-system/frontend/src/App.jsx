@@ -13,6 +13,7 @@ import EditStudent from './pages/admin/EditStudent';
 import StudentAttendance from './pages/admin/StudentAttendance';
 import Attendance from './pages/admin/Attendance';
 import AttendanceAnalysis from './pages/admin/AttendanceAnalysis';
+import AttendanceReport from './pages/admin/AttendanceReport';
 import './i18n';
 
 function App() {
@@ -40,6 +41,7 @@ function App() {
               {/* Attendance Routes */}
               <Route path="/admin/attendance" element={<Attendance />} />
               <Route path="/admin/attendance/analysis" element={<AttendanceAnalysis />} />
+              <Route path="/admin/attendance/reports" element={<AttendanceReport />} />
             </Route>
           </Route>
           
