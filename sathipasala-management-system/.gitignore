@@ -1,0 +1,70 @@
+# Dependency directories
+node_modules/
+.cache/
+dist/
+build/
+
+# Log files
+*.log
+*.log.*
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Editor/IDE files
+.idea/
+.vscode/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# System files
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Testing/coverage
+coverage/
+.nyc_output/
+*.lcov
+*.gcda
+*.gcno
+
+# Build tools
+.cache-loader/
+.parcel-cache/
+.next/
+out/
+.nuxt/
+.cache/
+.temp/
+.tmp/
+*.tmp
+*.bak
+
+# Package manager files
+yarn.lock
+package-lock.json
+pnpm-lock.yaml
+*.pnp.js
+.yarn-integrity
+.yarn/cache/
+.yarn/unplugged/
+.yarn/build-state.yml
+.yarn/install-state.gz
+.yarn/berry/cache/
+
+# Debug files
+*.pid
+*.seed
+*.pid.lock
