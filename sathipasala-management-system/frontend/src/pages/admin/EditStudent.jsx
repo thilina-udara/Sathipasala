@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
+import { useTranslation } from 'react-i18next';
 import { FaArrowLeft, FaSave } from 'react-icons/fa';
 
 const EditStudent = () => {
+  const { t } = useTranslation();
   const { id } = useParams();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -12,11 +14,10 @@ const EditStudent = () => {
   const [success, setSuccess] = useState(null);
   const fileInputRef = useRef(null);
   
-  // Student form data
+  // Student form data - no sinhalaName field
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
-    sinhalaName: '',
     dateOfBirth: '',
     gender: '',
     ageGroup: '',
@@ -57,7 +58,6 @@ const EditStudent = () => {
         setFormData({
           firstName,
           lastName,
-          sinhalaName: student.name.si || '',
           dateOfBirth: new Date(student.dateOfBirth).toISOString().split('T')[0],
           gender: student.gender || '',
           ageGroup: student.ageGroup || '',
@@ -89,8 +89,46 @@ const EditStudent = () => {
     fetchStudentData();
   }, [id]);
   
+  // Calculate age and set age group
+  const calculateAgeAndSetAgeGroup = (birthDate) => {
+    if (!birthDate) return;
+    
+    const today = new Date();
+    const dob = new Date(birthDate);
+    let age = today.getFullYear() - dob.getFullYear();
+    
+    if (
+      today.getMonth() < dob.getMonth() || 
+      (today.getMonth() === dob.getMonth() && today.getDate() < dob.getDate())
+    ) {
+      age--;
+    }
+    
+    let ageGroup;
+    if (age >= 0 && age <= 6) {
+      ageGroup = '3-6';
+      setFormData(prev => ({...prev, classCode: 'ADH'}));
+    } else if (age >= 7 && age <= 10) {
+      ageGroup = '7-10';
+      setFormData(prev => ({...prev, classCode: 'MET'}));
+    } else if (age >= 11 && age <= 13) {
+      ageGroup = '11-13';
+      setFormData(prev => ({...prev, classCode: 'KHA'}));
+    } else if (age >= 14) {
+      ageGroup = '14+';
+      setFormData(prev => ({...prev, classCode: 'NEK'}));
+    }
+    
+    setFormData(prev => ({...prev, ageGroup}));
+  };
+  
+  // Modify the handleChange function
   const handleChange = (e) => {
     const { name, value } = e.target;
+    
+    if (name === 'dateOfBirth') {
+      calculateAgeAndSetAgeGroup(value);
+    }
     
     if (name.startsWith('parentInfo.')) {
       const key = name.split('.')[1];
@@ -116,13 +154,13 @@ const EditStudent = () => {
       // Validate file type
       const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
       if (!allowedTypes.includes(file.type)) {
-        setError('Invalid file type. Please use JPG, PNG or GIF format.');
+        setError(t('common.errors.invalidImageType'));
         return;
       }
       
       // Validate file size (max 2MB)
       if (file.size > 2 * 1024 * 1024) {
-        setError('Image is too large. Maximum size is 2MB.');
+        setError(t('common.errors.imageTooLarge'));
         return;
       }
       
@@ -158,7 +196,9 @@ const EditStudent = () => {
       
       // Add all form fields
       submitData.append('name[en]', `${formData.firstName} ${formData.lastName}`);
-      submitData.append('name[si]', formData.sinhalaName);
+      // Use the same name for Sinhala (as requested)
+      submitData.append('name[si]', `${formData.firstName} ${formData.lastName}`);
+      
       submitData.append('dateOfBirth', formData.dateOfBirth);
       submitData.append('gender', formData.gender);
       submitData.append('ageGroup', formData.ageGroup);
@@ -195,7 +235,7 @@ const EditStudent = () => {
         }
       });
       
-      setSuccess('Student information updated successfully');
+      setSuccess(t('admin.students.updateSuccess'));
       
       // Navigate back to student details after short delay
       setTimeout(() => {
@@ -211,7 +251,11 @@ const EditStudent = () => {
   };
   
   if (loading) {
-    return <div className="flex justify-center items-center h-64">Loading student data...</div>;
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    );
   }
 
   return (
@@ -246,12 +290,12 @@ const EditStudent = () => {
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
             <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
-              Student Information
+              {t('admin.students.studentInformation')}
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  First Name
+                  {t('admin.students.firstName')}
                 </label>
                 <input
                   type="text"
@@ -265,7 +309,7 @@ const EditStudent = () => {
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Last Name
+                  {t('admin.students.lastName')}
                 </label>
                 <input
                   type="text"
@@ -277,22 +321,11 @@ const EditStudent = () => {
                 />
               </div>
               
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Sinhala Name
-                </label>
-                <input
-                  type="text"
-                  name="sinhalaName"
-                  value={formData.sinhalaName}
-                  onChange={handleChange}
-                  className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                />
-              </div>
+              {/* No Sinhala Name field */}
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Date of Birth
+                  {t('admin.students.dateOfBirth')}
                 </label>
                 <input
                   type="date"
@@ -306,7 +339,7 @@ const EditStudent = () => {
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Gender
+                  {t('admin.students.gender')}
                 </label>
                 <select
                   name="gender"
@@ -315,16 +348,16 @@ const EditStudent = () => {
                   required
                   className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                 >
-                  <option value="">Select Gender</option>
-                  <option value="M">Male</option>
-                  <option value="F">Female</option>
-                  <option value="O">Other</option>
+                  <option value="">{t('admin.students.selectGender')}</option>
+                  <option value="M">{t('admin.students.male')}</option>
+                  <option value="F">{t('admin.students.female')}</option>
+                  <option value="O">{t('admin.students.other')}</option>
                 </select>
               </div>
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Age Group
+                  {t('admin.students.ageGroup')}
                 </label>
                 <select
                   name="ageGroup"
@@ -333,18 +366,17 @@ const EditStudent = () => {
                   required
                   className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                 >
-                  <option value="">Select Age Group</option>
-                  <option value="3-6">3-6 Years</option>
-                  <option value="7-10">7-10 Years</option>
-                  <option value="11-14">11-14 Years</option>
-                  <option value="15-18">15-18 Years</option>
-                  <option value="18+">18+ Years</option>
+                  <option value="">{t('Select Age Group')}</option>
+                  <option value="3-6">{t('ageGroups.3-6')}</option>
+                  <option value="7-10">{t('ageGroups.7-10')}</option>
+                  <option value="11-13">{t('ageGroups.11-13')}</option>
+                  <option value="14+">{t('ageGroups.14+')}</option>
                 </select>
               </div>
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Class Year
+                  {t('admin.students.classYear')}
                 </label>
                 <input
                   type="text"
@@ -359,7 +391,7 @@ const EditStudent = () => {
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Class Code
+                  {t('admin.students.classCode')}
                 </label>
                 <select
                   name="classCode"
@@ -368,11 +400,11 @@ const EditStudent = () => {
                   required
                   className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                 >
-                  <option value="">Select Class</option>
-                  <option value="A">A</option>
-                  <option value="B">B</option>
-                  <option value="C">C</option>
-                  <option value="D">D</option>
+                  <option value="">{t('Select Class')}</option>
+                  <option value="ADH">{t('classes.ADH.name')} ({t('classes.ADH.nameSi')})</option>
+                  <option value="MET">{t('classes.MET.name')} ({t('classes.MET.nameSi')})</option>
+                  <option value="KHA">{t('classes.KHA.name')} ({t('classes.KHA.nameSi')})</option>
+                  <option value="NEK">{t('classes.NEK.name')} ({t('classes.NEK.nameSi')})</option>
                 </select>
               </div>
             </div>
@@ -380,10 +412,9 @@ const EditStudent = () => {
           
           <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
             <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
-              Profile Image
+              {t('admin.students.profilePhoto')}
             </h3>
-            <div className="flex items-center space-x-6">
-              {/* Image Preview */}
+            <div className="flex flex-col md:flex-row md:items-center gap-6">
               <div className="w-32 h-32 relative border rounded overflow-hidden flex items-center justify-center bg-gray-100 dark:bg-gray-700">
                 {imagePreview ? (
                   <img 
@@ -414,7 +445,7 @@ const EditStudent = () => {
                     onClick={() => fileInputRef.current.click()}
                     className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
                   >
-                    {imagePreview ? 'Change Image' : 'Upload Image'}
+                    {imagePreview ? t('changeImage') : t('selectImage')}
                   </button>
                   
                   {imagePreview && (
@@ -423,7 +454,7 @@ const EditStudent = () => {
                       onClick={handleRemoveImage}
                       className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
                     >
-                      Remove Image
+                      {t('removeImage')}
                     </button>
                   )}
                 </div>
@@ -437,12 +468,12 @@ const EditStudent = () => {
           
           <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
             <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
-              Parent Information
+              {t('admin.students.parentInformation')}
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Parent Name
+                  {t('admin.students.parentName')}
                 </label>
                 <input
                   type="text"
@@ -455,20 +486,21 @@ const EditStudent = () => {
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Phone Number
+                  {t('admin.students.parentPhone')}
                 </label>
                 <input
                   type="text"
                   name="parentInfo.phone"
                   value={formData.parentInfo.phone}
                   onChange={handleChange}
+                  required
                   className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                 />
               </div>
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Email
+                  {t('admin.students.parentEmail')}
                 </label>
                 <input
                   type="email"
@@ -481,7 +513,7 @@ const EditStudent = () => {
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Emergency Contact
+                  {t('admin.students.emergencyContact')}
                 </label>
                 <input
                   type="text"
@@ -494,7 +526,7 @@ const EditStudent = () => {
               
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Address
+                  {t('admin.students.address')}
                 </label>
                 <textarea
                   name="parentInfo.address"
@@ -519,7 +551,7 @@ const EditStudent = () => {
               disabled={submitting}
               className="flex items-center px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors disabled:opacity-50"
             >
-              {submitting ? 'Saving...' : (
+              {submitting ? t('common.submitting') : (
                 <>
                   <FaSave className="mr-2" />
                   Save Changes

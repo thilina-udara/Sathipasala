@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { FaHome, FaUsers, FaCalendarAlt, FaChartBar, FaUserCog, FaCog, FaLanguage } from 'react-icons/fa';
 import { useAuth } from '../../contexts/AuthContext';
 
 const Sidebar = ({ isMobile, closeMobileMenu }) => {
@@ -19,16 +20,19 @@ const Sidebar = ({ isMobile, closeMobileMenu }) => {
   };
 
   const isActive = (path) => {
-    return location.pathname === path;
+    return location.pathname.startsWith(path) ? 'bg-blue-700 text-white' : 'text-gray-300 hover:bg-blue-600 hover:text-white';
   };
 
   const handleLogout = () => {
     logout();
   };
 
-  const toggleLanguage = () => {
-    i18n.changeLanguage(i18n.language === 'en' ? 'si' : 'en');
+  const changeLanguage = (lng) => {
+    i18n.changeLanguage(lng);
+    localStorage.setItem('language', lng);
   };
+
+  const currentLanguage = i18n.language || 'en';
 
   const NavItem = ({ to, icon, label, hasSubMenu, subMenuKey, children }) => {
     const isMenuActive = to ? isActive(to) : openSubMenu === subMenuKey;
@@ -142,14 +146,14 @@ const Sidebar = ({ isMobile, closeMobileMenu }) => {
       <div className="flex-1 overflow-y-auto py-4 px-3">
         <NavItem 
           to="/admin/dashboard" 
-          icon="📊" 
+          icon={<FaHome />} 
           label={t('dashboard')} 
         />
 
         <NavItem 
           hasSubMenu={true}
           subMenuKey="students" 
-          icon="👨‍🎓" 
+          icon={<FaUsers />} 
           label={t('students')}
         >
           <SubNavItem to="/admin/students" label={t('allStudents')} />
@@ -160,7 +164,7 @@ const Sidebar = ({ isMobile, closeMobileMenu }) => {
         <NavItem 
           hasSubMenu={true}
           subMenuKey="attendance" 
-          icon="📝" 
+          icon={<FaCalendarAlt />} 
           label={t('sidebar.attendance')}
         >
           <SubNavItem to="/admin/attendance" label={t('sidebar.markAttendance')} />
@@ -182,7 +186,7 @@ const Sidebar = ({ isMobile, closeMobileMenu }) => {
         <NavItem 
           hasSubMenu={true}
           subMenuKey="users" 
-          icon="👥" 
+          icon={<FaUserCog />} 
           label={t('sidebar.users')}
         >
           <SubNavItem to="/admin/users/teachers" label={t('teachers')} />
@@ -192,7 +196,7 @@ const Sidebar = ({ isMobile, closeMobileMenu }) => {
 
         <NavItem 
           to="/admin/settings" 
-          icon="⚙️" 
+          icon={<FaCog />} 
           label={t('settings')} 
         />
       </div>
@@ -200,15 +204,34 @@ const Sidebar = ({ isMobile, closeMobileMenu }) => {
       {/* Utility section */}
       <div className="p-4 border-t border-gray-200 dark:border-gray-800">
         <div className="flex flex-col gap-3">
-          <button 
-            onClick={toggleLanguage}
-            className="flex items-center py-2 px-4 rounded-md text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
-          >
-            <span className="text-xl mr-3">🌐</span>
-            {!isCollapsed && (
-              <span>{i18n.language === 'en' ? 'සිංහල' : 'English'}</span>
-            )}
-          </button>
+          <div className="px-2 pt-4 pb-2">
+            <div className="flex items-center">
+              <FaLanguage className="text-gray-300 mr-2" />
+              <span className="text-sm font-medium text-gray-300">{t('sidebar.language')}</span>
+            </div>
+            <div className="mt-2 flex space-x-2">
+              <button
+                onClick={() => changeLanguage('en')}
+                className={`px-3 py-1 text-sm rounded-md ${
+                  currentLanguage === 'en' 
+                    ? 'bg-blue-600 text-white' 
+                    : 'border border-gray-500 text-gray-300 hover:bg-blue-700 hover:text-white'
+                }`}
+              >
+                English
+              </button>
+              <button
+                onClick={() => changeLanguage('si')}
+                className={`px-3 py-1 text-sm rounded-md ${
+                  currentLanguage === 'si' 
+                    ? 'bg-blue-600 text-white' 
+                    : 'border border-gray-500 text-gray-300 hover:bg-blue-700 hover:text-white'
+                }`}
+              >
+                සිංහල
+              </button>
+            </div>
+          </div>
           
           <button 
             onClick={handleLogout}

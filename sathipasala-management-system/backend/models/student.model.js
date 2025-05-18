@@ -22,7 +22,7 @@ const studentSchema = new mongoose.Schema({
   },
   ageGroup: {
     type: String,
-    enum: ['3-6', '7-10', '11-14', '15-17'],
+    enum: ['3-6', '7-10', '11-13', '14+'],
     required: [true, 'Age group is required']
   },
   classYear: {
@@ -31,6 +31,7 @@ const studentSchema = new mongoose.Schema({
   },
   classCode: {
     type: String,
+    enum: ['ADH', 'MET', 'KHA', 'NEK'], // Changed from A,B,C,D to class codes
     required: [true, 'Class code is required']
   },
   parentInfo: {

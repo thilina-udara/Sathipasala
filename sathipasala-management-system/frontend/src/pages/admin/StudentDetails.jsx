@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import axios from 'axios';
-import { FaArrowLeft, FaPencilAlt, FaTrash } from 'react-icons/fa';
+import { FaArrowLeft, FaPencilAlt, FaTrash, FaCalendarAlt } from 'react-icons/fa';
+import ClassBadge from '../../components/common/ClassBadge';
 
 const StudentDetails = () => {
   const { id } = useParams();
@@ -9,15 +10,23 @@ const StudentDetails = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // Replace the useEffect for fetching student data
   useEffect(() => {
     const fetchStudentDetails = async () => {
       try {
         setLoading(true);
+        setError(null);
+        
         const response = await axios.get(`/api/students/${id}`, {
           headers: {
             Authorization: `Bearer ${localStorage.getItem('token')}`
           }
         });
+        
+        if (!response.data.success) {
+          throw new Error(response.data.message || 'Failed to fetch student details');
+        }
+        
         setStudent(response.data.data);
       } catch (err) {
         console.error('Error fetching student details:', err);
@@ -27,11 +36,17 @@ const StudentDetails = () => {
       }
     };
 
-    fetchStudentDetails();
+    if (id) {
+      fetchStudentDetails();
+    }
   }, [id]);
 
   if (loading) {
-    return <div className="flex justify-center items-center h-64">Loading student details...</div>;
+    return (
+      <div className="flex justify-center items-center h-64">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      </div>
+    );
   }
 
   if (error) {
@@ -46,7 +61,14 @@ const StudentDetails = () => {
   }
 
   if (!student) {
-    return <div>Student not found</div>;
+    return (
+      <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mb-4">
+        <p>Student not found</p>
+        <Link to="/admin/students" className="text-blue-600 hover:underline mt-2 inline-block">
+          Back to Students List
+        </Link>
+      </div>
+    );
   }
 
   // Calculate age from dateOfBirth
@@ -54,9 +76,11 @@ const StudentDetails = () => {
     const birthDate = new Date(dateOfBirth);
     const today = new Date();
     let age = today.getFullYear() - birthDate.getFullYear();
-    const monthDifference = today.getMonth() - birthDate.getMonth();
     
-    if (monthDifference < 0 || (monthDifference === 0 && today.getDate() < birthDate.getDate())) {
+    if (
+      today.getMonth() < birthDate.getMonth() || 
+      (today.getMonth() === birthDate.getMonth() && today.getDate() < birthDate.getDate())
+    ) {
       age--;
     }
     
@@ -64,6 +88,17 @@ const StudentDetails = () => {
   };
 
   const studentAge = calculateAge(student.dateOfBirth);
+
+  // Get age group label
+  const getAgeGroupLabel = (ageGroup) => {
+    switch(ageGroup) {
+      case '3-6': return '3-6 years (Adhiṭṭhāna)';
+      case '7-10': return '7-10 years (Mettā)';
+      case '11-13': return '11-13 years (Khanti)';
+      case '14+': return '14+ years (Nekkhamma)';
+      default: return ageGroup;
+    }
+  };
 
   return (
     <div className="py-6">
@@ -92,6 +127,7 @@ const StudentDetails = () => {
               to={`/admin/students/${id}/attendance`}
               className="flex items-center px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
             >
+              <FaCalendarAlt className="mr-2" />
               View Attendance
             </Link>
           </div>
@@ -152,7 +188,9 @@ const StudentDetails = () => {
                       </div>
                       <div className="flex justify-between">
                         <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Age Group:</dt>
-                        <dd className="text-sm text-gray-900 dark:text-white">{student.ageGroup}</dd>
+                        <dd className="text-sm text-gray-900 dark:text-white">
+                          {getAgeGroupLabel(student.ageGroup)}
+                        </dd>
                       </div>
                     </dl>
                   </div>
@@ -163,12 +201,10 @@ const StudentDetails = () => {
                     </h3>
                     <dl className="space-y-2">
                       <div className="flex justify-between">
-                        <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Class Year:</dt>
-                        <dd className="text-sm text-gray-900 dark:text-white">{student.classYear}</dd>
-                      </div>
-                      <div className="flex justify-between">
-                        <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Class Code:</dt>
-                        <dd className="text-sm text-gray-900 dark:text-white">{student.classCode}</dd>
+                        <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Class:</dt>
+                        <dd className="text-sm text-gray-900 dark:text-white">
+                          {student.classYear} - <ClassBadge classCode={student.classCode} />
+                        </dd>
                       </div>
                       <div className="flex justify-between">
                         <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Registration Date:</dt>

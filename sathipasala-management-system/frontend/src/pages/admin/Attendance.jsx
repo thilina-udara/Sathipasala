@@ -254,7 +254,7 @@ const Attendance = () => {
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              {t('admin.students.classCode')}
+              Class
             </label>
             <select
               name="classCode"
@@ -262,10 +262,10 @@ const Attendance = () => {
               onChange={handleFilterChange}
               className="w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:border-blue-300 dark:bg-gray-700 dark:text-white dark:border-gray-600"
             >
-              <option value="A">A</option>
-              <option value="B">B</option>
-              <option value="C">C</option>
-              <option value="D">D</option>
+              <option value="ADH">Adhiṭṭhāna (අධිඨාන) - White</option>
+              <option value="MET">Mettā (මෙත්තා) - Orange</option>
+              <option value="KHA">Khanti (ඛන්ති) - Yellow</option>
+              <option value="NEK">Nekkhamma (නෙක්කම්ම) - Blue</option>
             </select>
           </div>
           <div>

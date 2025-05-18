@@ -170,7 +170,44 @@ const resources = {
         accounts: 'Manage Accounts',
         settings: 'Settings',
         logout: 'Logout',
-        attendanceAnalysis: 'Attendance Analysis'
+        attendanceAnalysis: 'Attendance Analysis',
+        language: 'Language'
+      },
+      classes: {
+        ADH: {
+          code: 'ADH',
+          name: 'Adhiṭṭhāna',
+          nameSi: 'අධිඨාන',
+          description: '3-6 years',
+          color: 'white'
+        },
+        MET: {
+          code: 'MET',
+          name: 'Mettā',
+          nameSi: 'මෙත්තා',
+          description: '7-10 years',
+          color: 'orange'
+        },
+        KHA: {
+          code: 'KHA',
+          name: 'Khanti',
+          nameSi: 'ඛන්ති',
+          description: '11-13 years',
+          color: 'yellow'
+        },
+        NEK: {
+          code: 'NEK',
+          name: 'Nekkhamma',
+          nameSi: 'නෙක්කම්ම',
+          description: '14+ years',
+          color: 'blue'
+        }
+      },
+      ageGroups: {
+        '3-6': '3-6 years (Adhiṭṭhāna)',
+        '7-10': '7-10 years (Mettā)',
+        '11-13': '11-13 years (Khanti)',
+        '14+': '14+ years (Nekkhamma)'
       }
     }
   },
@@ -290,7 +327,30 @@ const resources = {
           hints: {
             imageRequirements: 'JPG, PNG or GIF, max 2MB'
           }
-        }
+        },
+        months: {
+          january: 'ජනවාරි',
+          february: 'පෙබරවාරි',
+          march: 'මාර්තු',
+          april: 'අප්‍රේල්',
+          may: 'මැයි',
+          june: 'ජූනි',
+          july: 'ජූලි',
+          august: 'අගෝස්තු',
+          september: 'සැප්තැම්බර්',
+          october: 'ඔක්තෝබර්',
+          november: 'නොවැම්බර්',
+          december: 'දෙසැම්බර්'
+        },
+        pagination: {
+          page: 'පිටුව',
+          of: 'ගේ'
+        },
+        export: {
+          csv: 'CSV ලෙස අපනයනය කරන්න'
+        },
+        search: 'සොයන්න',
+        loading: 'ලෝඩ් වෙමින්...'
       },
       common: {
         viewAll: 'සියල්ල බලන්න',
@@ -318,7 +378,44 @@ const resources = {
         accounts: 'ගිණුම් කළමනාකරණය',
         settings: 'සැකසුම්',
         logout: 'පිටවන්න',
-        attendanceAnalysis: 'පැමිණීමේ විශ්ලේෂණය'
+        attendanceAnalysis: 'පැමිණීමේ විශ්ලේෂණය',
+        language: 'Language'
+      },
+      classes: {
+        ADH: {
+          code: 'ADH',
+          name: 'Adhiṭṭhāna',
+          nameSi: 'අධිඨාන',
+          description: '3-6 years',
+          color: 'white'
+        },
+        MET: {
+          code: 'MET',
+          name: 'Mettā',
+          nameSi: 'මෙත්තා',
+          description: '7-10 years',
+          color: 'orange'
+        },
+        KHA: {
+          code: 'KHA',
+          name: 'Khanti',
+          nameSi: 'ඛන්ති',
+          description: '11-13 years',
+          color: 'yellow'
+        },
+        NEK: {
+          code: 'NEK',
+          name: 'Nekkhamma',
+          nameSi: 'නෙක්කම්ම',
+          description: '14+ years',
+          color: 'blue'
+        }
+      },
+      ageGroups: {
+        '3-6': '3-6 years (Adhiṭṭhāna)',
+        '7-10': '7-10 years (Mettā)',
+        '11-13': '11-13 years (Khanti)',
+        '14+': '14+ years (Nekkhamma)'
       }
     }
   }

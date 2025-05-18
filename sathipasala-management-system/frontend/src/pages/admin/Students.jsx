@@ -1,10 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
-import { useTranslation } from 'react-i18next';
+import ActionButton from '../../components/common/ActionButton';
 
 const Students = () => {
-  const { t } = useTranslation();
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -30,11 +29,8 @@ const Students = () => {
   // Success message state
   const [successMessage, setSuccessMessage] = useState('');
 
-  useEffect(() => {
-    fetchStudents();
-  }, [filter]);
-
-  const fetchStudents = async () => {
+  // Fetch students function with useCallback
+  const fetchStudents = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
@@ -64,7 +60,11 @@ const Students = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filter]); // Include filter dependency
+
+  useEffect(() => {
+    fetchStudents();
+  }, [fetchStudents]); // fetchStudents now includes filter as dependency
 
   const handleFilterChange = (e) => {
     const { name, value } = e.target;
@@ -96,11 +96,17 @@ const Students = () => {
     setShowDeleteModal(true);
   };
   
+
   // Handle delete function
   const handleDelete = async () => {
     try {
       setLoading(true);
-      await axios.delete(`/api/students/${studentToDelete._id}`, {
+      
+      if (!studentToDelete || !studentToDelete._id) {
+        throw new Error('Invalid student selection');
+      }
+      
+      const response = await axios.delete(`/api/students/${studentToDelete._id}`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem('token')}`
         }
@@ -113,15 +119,28 @@ const Students = () => {
       // Show success message
       setSuccessMessage(`Student "${studentToDelete.name.en}" has been deleted successfully.`);
       
-      // Automatically clear success message after 3 seconds
+      // Refresh student list
+      fetchStudents();
+      
+      // Automatically hide the message after 3 seconds
       setTimeout(() => {
         setSuccessMessage('');
       }, 3000);
       
-      // Refresh student list
-      fetchStudents();
     } catch (err) {
-      setError(err.response?.data?.message || 'Failed to delete student');
+      console.error('Error deleting student:', err);
+      
+      let errorMessage = 'Failed to delete student. Please try again.';
+      
+      if (err.response) {
+        if (err.response.status === 404) {
+          errorMessage = 'Student not found. It may have been already deleted.';
+        } else if (err.response.data && err.response.data.message) {
+          errorMessage = err.response.data.message;
+        }
+      }
+      
+      setError(errorMessage);
       setShowDeleteModal(false);
     } finally {
       setLoading(false);
@@ -182,6 +201,53 @@ const Students = () => {
     return buttons;
   };
 
+  // Get age group label
+  const getAgeGroupLabel = (ageGroup) => {
+    switch(ageGroup) {
+      case '3-6': return '3-6 years (Adhiṭṭhāna)';
+      case '7-10': return '7-10 years (Mettā)';
+      case '11-13': return '11-13 years (Khanti)';
+      case '14+': return '14+ years (Nekkhamma)';
+      default: return ageGroup;
+    }
+  };
+
+  // Get class information
+  const getClassInfo = (classCode) => {
+    switch(classCode) {
+      case 'ADH': 
+        return { 
+          name: 'Adhiṭṭhāna', 
+          nameSi: 'අධිඨාන',
+          color: 'bg-white text-gray-800 dark:bg-gray-800 dark:text-white border border-gray-300' 
+        };
+      case 'MET': 
+        return { 
+          name: 'Mettā', 
+          nameSi: 'මෙත්තා',
+          color: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200' 
+        };
+      case 'KHA': 
+        return { 
+          name: 'Khanti', 
+          nameSi: 'ඛන්ති',
+          color: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' 
+        };
+      case 'NEK': 
+        return { 
+          name: 'Nekkhamma', 
+          nameSi: 'නෙක්කම්ම',
+          color: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200' 
+        };
+      default: 
+        return { 
+          name: 'Unknown', 
+          nameSi: 'නොදන්නා',
+          color: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200' 
+        };
+    }
+  };
+
   return (
     <div className="py-6">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8">
@@ -204,8 +270,13 @@ const Students = () => {
 
         {/* Success message */}
         {successMessage && (
-          <div className="mb-4 p-4 bg-green-100 border border-green-400 text-green-700 rounded">
-            {successMessage}
+          <div className="mb-4 p-4 bg-green-50 border border-green-200 text-green-700 rounded flex items-center">
+            <div className="bg-green-100 p-1 rounded-full mr-2">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 text-green-600" viewBox="0 0 20 20" fill="currentColor">
+                <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+              </svg>
+            </div>
+            <span>{successMessage}</span>
           </div>
         )}
 
@@ -247,9 +318,10 @@ const Students = () => {
                 className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
               />
             </div>
+            {/* Class filter dropdown */}
             <div>
               <label htmlFor="classCode" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                Class Code
+                Class
               </label>
               <select
                 id="classCode"
@@ -259,10 +331,10 @@ const Students = () => {
                 className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
               >
                 <option value="">All Classes</option>
-                <option value="A">A</option>
-                <option value="B">B</option>
-                <option value="C">C</option>
-                <option value="D">D</option>
+                <option value="ADH">Adhiṭṭhāna (අධිඨාන) - White</option>
+                <option value="MET">Mettā (මෙත්තා) - Orange</option>
+                <option value="KHA">Khanti (ඛන්ති) - Yellow</option>
+                <option value="NEK">Nekkhamma (නෙක්කම්ම) - Blue</option>
               </select>
             </div>
             <div>
@@ -296,7 +368,10 @@ const Students = () => {
         {/* Students table */}
         <div className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden">
           {loading && students.length === 0 ? (
-            <div className="p-4 text-center">Loading...</div>
+            <div className="p-8 text-center">
+              
+              <p className="mt-4 text-gray-500 dark:text-gray-400">Loading students...</p>
+            </div>
           ) : students.length > 0 ? (
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
@@ -386,42 +461,41 @@ const Students = () => {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                        {student.ageGroup}
+                        {getAgeGroupLabel(student.ageGroup)}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                        {student.classYear} - {student.classCode}
+                      <td className="px-6 py-4 whitespace-nowrap text-sm">
+                        {student.classYear} - {' '}
+                        {(() => {
+                          const classInfo = getClassInfo(student.classCode);
+                          return (
+                            <span className={`px-2 py-1 rounded text-xs font-medium ${classInfo.color}`}>
+                              {classInfo.name} ({classInfo.nameSi})
+                            </span>
+                          );
+                        })()}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                         {student.parentInfo?.phone || '-'}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <div className="flex justify-end space-x-4">
-                          {/* View button */}
-                          <Link
+                        <div className="flex justify-end space-x-2">
+                          <ActionButton
+                            type="view"
                             to={`/admin/students/${student._id}`}
-                            className="text-blue-600 hover:text-blue-900 dark:text-blue-400 dark:hover:text-blue-300"
-                            title="View student details"
-                          >
-                            View
-                          </Link>
+                            label="View"
+                          />
                           
-                          {/* Edit button */}
-                          <Link
-                            to={`/admin/students/${student._id}/edit`}
-                            className="text-indigo-600 hover:text-indigo-900 dark:text-indigo-400 dark:hover:text-indigo-300"
-                            title="Edit student"
-                          >
-                            Edit
-                          </Link>
+                          <ActionButton
+                            type="edit"
+                            to={`/admin/students/${student._id}/edit`} 
+                            label="Edit"
+                          />
                           
-                          {/* Delete button */}
-                          <button
+                          <ActionButton
+                            type="delete"
                             onClick={() => confirmDelete(student)}
-                            className="text-red-600 hover:text-red-900 dark:text-red-400 dark:hover:text-red-300"
-                            title="Delete student"
-                          >
-                            Delete
-                          </button>
+                            label="Delete"
+                          />
                         </div>
                       </td>
                     </tr>
@@ -469,8 +543,9 @@ const Students = () => {
               <div className="bg-white dark:bg-gray-800 px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                 <div className="sm:flex sm:items-start">
                   <div className="mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full bg-red-100 dark:bg-red-900 sm:mx-0 sm:h-10 sm:w-10">
-                    {/* Use a text "X" instead of icon */}
-                    <span className="h-5 w-5 text-red-600 dark:text-red-400 font-bold">✕</span>
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-red-600 dark:text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z" clipRule="evenodd" />
+                    </svg>
                   </div>
                   <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left">
                     <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white" id="modal-title">

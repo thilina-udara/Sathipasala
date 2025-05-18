@@ -1,5 +1,8 @@
 const Student = require('../models/student.model');
 const User = require('../models/user.model');
+const Attendance = require('../models/attendance.model'); // Import Attendance model
+const fs = require('fs');
+const path = require('path');
 
 // Helper function to generate student ID
 const generateStudentId = async (yearOfAdmission, classCode) => {
@@ -221,7 +224,7 @@ exports.updateStudent = async (req, res) => {
 exports.deleteStudent = async (req, res) => {
   try {
     const student = await Student.findById(req.params.id);
-
+    
     if (!student) {
       return res.status(404).json({
         success: false,
@@ -229,16 +232,38 @@ exports.deleteStudent = async (req, res) => {
       });
     }
 
-    await student.remove();
-
+    // Check if student has attendance records
+    const attendanceRecords = await Attendance.find({ 'students.studentId': student.studentId });
+    
+    // Delete profile image file if exists
+    if (student.profileImage && student.profileImage.public_id) {
+      const imagePath = path.join(__dirname, '../public/uploads/students', student.profileImage.public_id);
+      if (fs.existsSync(imagePath)) {
+        fs.unlinkSync(imagePath);
+      }
+    }
+    
+    // Update attendance records if they exist
+    if (attendanceRecords.length > 0) {
+      await Attendance.updateMany(
+        { 'students.studentId': student.studentId },
+        { $pull: { students: { studentId: student.studentId } } }
+      );
+    }
+    
+    // Delete the student - using deleteOne() instead of remove() which is deprecated
+    await Student.deleteOne({ _id: req.params.id });
+    
     res.status(200).json({
       success: true,
-      data: {}
+      message: 'Student deleted successfully'
     });
+    
   } catch (error) {
+    console.error('Error deleting student:', error);
     res.status(500).json({
       success: false,
-      message: error.message
+      message: error.message || 'Internal server error'
     });
   }
 };

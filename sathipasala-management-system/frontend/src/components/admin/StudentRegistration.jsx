@@ -13,12 +13,12 @@ const StudentRegistration = () => {
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
-    sinhalaName: '', // Added field for Sinhala name
+    sinhalaName: '',
     dateOfBirth: '',
     gender: '',
     ageGroup: '3-6',
     classYear: new Date().getFullYear().toString(),
-    classCode: 'A',
+    classCode: 'ADH',  // Default to Adhiṭṭhāna class
     parentInfo: {
       name: '',
       phone: '',
@@ -28,23 +28,61 @@ const StudentRegistration = () => {
     emergencyContact: ''
   });
 
+  // Add this function within your StudentRegistration component
+  const calculateAgeAndSetAgeGroup = (birthDate) => {
+    if (!birthDate) return;
+    
+    const today = new Date();
+    const dob = new Date(birthDate);
+    let age = today.getFullYear() - dob.getFullYear();
+    
+    // Adjust age if birthday hasn't occurred yet this year
+    if (
+      today.getMonth() < dob.getMonth() || 
+      (today.getMonth() === dob.getMonth() && today.getDate() < dob.getDate())
+    ) {
+      age--;
+    }
+    
+    // Set appropriate age group based on age
+    let ageGroup;
+    if (age >= 0 && age <= 6) {
+      ageGroup = '3-6';
+      setFormData(prev => ({...prev, classCode: 'ADH'})); // Adhiṭṭhāna
+    } else if (age >= 7 && age <= 10) {
+      ageGroup = '7-10';
+      setFormData(prev => ({...prev, classCode: 'MET'})); // Mettā
+    } else if (age >= 11 && age <= 13) {
+      ageGroup = '11-13';
+      setFormData(prev => ({...prev, classCode: 'KHA'})); // Khanti
+    } else if (age >= 14) {
+      ageGroup = '14+';
+      setFormData(prev => ({...prev, classCode: 'NEK'})); // Nekkhamma
+    }
+    
+    // Update the form data with new age group
+    setFormData(prev => ({...prev, ageGroup}));
+  };
+
   const handleChange = (e) => {
     const { name, value } = e.target;
     
+    // If date of birth changed, calculate age and set age group
+    if (name === 'dateOfBirth') {
+      calculateAgeAndSetAgeGroup(value);
+    }
+    
     if (name.startsWith('parentInfo.')) {
       const key = name.split('.')[1];
-      setFormData({
-        ...formData,
+      setFormData(prev => ({
+        ...prev,
         parentInfo: {
-          ...formData.parentInfo,
+          ...prev.parentInfo,
           [key]: value
         }
-      });
+      }));
     } else {
-      setFormData({
-        ...formData,
-        [name]: value
-      });
+      setFormData(prev => ({ ...prev, [name]: value }));
     }
   };
 
@@ -146,7 +184,7 @@ const StudentRegistration = () => {
         gender: '',
         ageGroup: '3-6',
         classYear: new Date().getFullYear().toString(),
-        classCode: 'A',
+        classCode: 'ADH',  // Default to Adhiṭṭhāna class
         parentInfo: {
           name: '',
           phone: '',
@@ -226,7 +264,7 @@ const StudentRegistration = () => {
             
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                {t('admin.students.dateOfBirth')}
+                Date of Birth
               </label>
               <input
                 type="date"
@@ -258,20 +296,23 @@ const StudentRegistration = () => {
             
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                {t('admin.students.ageGroup')}
+                Age Group
               </label>
               <select
                 name="ageGroup"
                 value={formData.ageGroup}
                 onChange={handleChange}
-                required
-                className="w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:border-blue-300 dark:bg-gray-700 dark:text-white dark:border-gray-600"
+                disabled={formData.dateOfBirth !== ''}
+                className="w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:border-blue-300 dark:bg-gray-700 dark:text-white dark:border-gray-600 disabled:bg-gray-100 disabled:text-gray-500 dark:disabled:bg-gray-800"
               >
-                <option value="3-6">3-6 {t('admin.students.years')}</option>
-                <option value="7-10">7-10 {t('admin.students.years')}</option>
-                <option value="11-14">11-14 {t('admin.students.years')}</option>
-                <option value="15-17">15-17 {t('admin.students.years')}</option>
+                <option value="3-6">3-6 years (Adhiṭṭhāna)</option>
+                <option value="7-10">7-10 years (Mettā)</option>
+                <option value="11-13">11-13 years (Khanti)</option>
+                <option value="14+">14+ years (Nekkhamma)</option>
               </select>
+              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                Auto-assigned based on date of birth
+              </p>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
@@ -291,7 +332,7 @@ const StudentRegistration = () => {
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  {t('admin.students.classCode')}
+                  Class
                 </label>
                 <select
                   name="classCode"
@@ -300,11 +341,14 @@ const StudentRegistration = () => {
                   required
                   className="w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:border-blue-300 dark:bg-gray-700 dark:text-white dark:border-gray-600"
                 >
-                  <option value="A">A</option>
-                  <option value="B">B</option>
-                  <option value="C">C</option>
-                  <option value="D">D</option>
+                  <option value="ADH">Adhiṭṭhāna (අධිඨාන) - White</option>
+                  <option value="MET">Mettā (මෙත්තා) - Orange</option>
+                  <option value="KHA">Khanti (ඛන්ති) - Yellow</option>
+                  <option value="NEK">Nekkhamma (නෙක්කම්ම) - Blue</option>
                 </select>
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                  Suggested based on age group
+                </p>
               </div>
             </div>
             
@@ -349,7 +393,7 @@ const StudentRegistration = () => {
                 />
               </div>
               <p className="text-xs text-gray-500 mt-1">
-                {t('admin.students.imageHint')} (Max 2MB, JPG/PNG)
+                Maximum 2MB, JPG or PNG format only
               </p>
             </div>
           </div>

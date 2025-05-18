@@ -16,7 +16,7 @@ const AdminLayout = () => {
   };
 
   const handleLogout = () => {
-    logout();
+    localStorage.removeItem('token');
     navigate('/login');
   };
 
@@ -73,6 +73,14 @@ const AdminLayout = () => {
             <h1 className="text-xl font-semibold text-gray-800 dark:text-white">
               {getPageTitle()}
             </h1>
+
+            {/* Logout Button */}
+            <button
+              onClick={logout}
+              className="ml-auto text-red-600 hover:text-red-800"
+            >
+              Logout
+            </button>
           </div>
         </header>
 

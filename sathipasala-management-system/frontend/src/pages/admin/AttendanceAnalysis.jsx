@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
 
@@ -28,24 +28,7 @@ const AttendanceAnalysis = () => {
     searchTerm: ''
   });
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        setLoading(true);
-        const studentsData = await fetchStudents();
-        await fetchAttendanceData(studentsData);
-      } catch (error) {
-        console.error("Error fetching data:", error);
-        setError(error.message || "Failed to load attendance data");
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchData();
-  }, [filters.month, filters.year, filters.classYear, filters.classCode, filters.studentId]);
-
-  const fetchStudents = async () => {
+  const fetchStudents = useCallback(async () => {
     try {
       const queryParams = new URLSearchParams();
       if (filters.classYear) queryParams.append('classYear', filters.classYear);
@@ -77,28 +60,9 @@ const AttendanceAnalysis = () => {
       setStudents(mockStudents);
       return mockStudents;
     }
-  };
+  }, [filters.classYear, filters.classCode]);
 
-  // Get all Sundays in the selected month/year
-  const getSundaysInMonth = (month, year) => {
-    const sundays = [];
-    const date = new Date(year, month - 1, 1);
-    
-    // Find first Sunday
-    while (date.getDay() !== 0) {
-      date.setDate(date.getDate() + 1);
-    }
-    
-    // Get all Sundays in the month
-    while (date.getMonth() === month - 1) {
-      sundays.push(new Date(date));
-      date.setDate(date.getDate() + 7);
-    }
-    
-    return sundays;
-  };
-  
-  const fetchAttendanceData = async (studentsList) => {
+  const fetchAttendanceData = useCallback(async (studentsList) => {
     try {
       const sundays = getSundaysInMonth(filters.month, filters.year);
       
@@ -152,8 +116,44 @@ const AttendanceAnalysis = () => {
       // Calculate and set summary statistics
       calculateAndSetSummary(mockData, students.length);
     }
-  };
+  }, [filters, students]);
 
+  useEffect(() => {
+    setLoading(true);
+    const fetchData = async () => {
+      try {
+        await fetchStudents();
+        await fetchAttendanceData();
+      } catch (error) {
+        console.error("Error fetching data:", error);
+        setError(error.message || "Failed to load attendance data");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [fetchStudents, fetchAttendanceData]);
+
+  // Get all Sundays in the selected month/year
+  const getSundaysInMonth = (month, year) => {
+    const sundays = [];
+    const date = new Date(year, month - 1, 1);
+    
+    // Find first Sunday
+    while (date.getDay() !== 0) {
+      date.setDate(date.getDate() + 1);
+    }
+    
+    // Get all Sundays in the month
+    while (date.getMonth() === month - 1) {
+      sundays.push(new Date(date));
+      date.setDate(date.getDate() + 7);
+    }
+    
+    return sundays;
+  };
+  
   // Calculate and set summary statistics
   const calculateAndSetSummary = (attendanceData, totalStudentCount) => {
     if (!attendanceData?.dailyAttendance) return;
@@ -311,9 +311,9 @@ const AttendanceAnalysis = () => {
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 md:mb-0">
-            {t('admin.attendance.monthlyAnalysis')}
+            Monthly Attendance Analysis
             <span className="ml-2 text-sm font-normal text-blue-600">
-              ({t('admin.attendance.sundaysOnly')})
+              (Sundays Only)
             </span>
           </h2>
           
@@ -368,7 +368,7 @@ const AttendanceAnalysis = () => {
           
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              {t('admin.students.classCode')}
+              Class
             </label>
             <select
               name="classCode"
@@ -376,11 +376,11 @@ const AttendanceAnalysis = () => {
               onChange={handleFilterChange}
               className="w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:border-blue-300 dark:bg-gray-700 dark:text-white dark:border-gray-600"
             >
-              <option value="">{t('admin.filters.all')}</option>
-              <option value="A">A</option>
-              <option value="B">B</option>
-              <option value="C">C</option>
-              <option value="D">D</option>
+              <option value="">All Classes</option>
+              <option value="ADH">Adhiṭṭhāna (අධිඨාන)</option>
+              <option value="MET">Mettā (මෙත්තා)</option>
+              <option value="KHA">Khanti (ඛන්ති)</option>
+              <option value="NEK">Nekkhamma (නෙක්කම්ම)</option>
             </select>
           </div>
           
