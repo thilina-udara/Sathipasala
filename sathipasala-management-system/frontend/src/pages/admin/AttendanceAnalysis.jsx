@@ -1,9 +1,61 @@
-import { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
+import { 
+  LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, 
+  CartesianGrid, BarChart, Bar, PieChart, Pie, Cell, Legend 
+} from 'recharts';
+
+const COLORS = ['#10b981', '#ef4444', '#f59e42', '#6366f1'];
+
+// Class labels in both languages
+const CLASS_LABELS = {
+  ADH: { en: "Adhiṭṭhāna", si: "අධිඨාන" },
+  MET: { en: "Mettā", si: "මෙත්තා" },
+  KHA: { en: "Khanti", si: "ඛන්ති" },
+  NEK: { en: "Nekkhamma", si: "නෙක්කම්ම" }
+};
 
 const AttendanceAnalysis = () => {
-  const { t } = useTranslation();
+  const { i18n } = useTranslation();
+  const currentLang = i18n.language || 'en';
+  
+  // Simple direct labels based on language
+  const L = {
+    analysis: currentLang === 'si' ? "පැමිණීමේ විශ්ලේෂණය" : "Attendance Analysis",
+    exportCSV: currentLang === 'si' ? "CSV අපනයනය කරන්න" : "Export CSV",
+    month: currentLang === 'si' ? "මාසය" : "Month",
+    year: currentLang === 'si' ? "වර්ෂය" : "Year",
+    class: currentLang === 'si' ? "පන්තිය" : "Class",
+    search: currentLang === 'si' ? "සොයන්න" : "Search",
+    searchPlaceholder: currentLang === 'si' ? "නම හෝ අංකය සොයන්න" : "Search by name or ID",
+    all: currentLang === 'si' ? "සියල්ල" : "All",
+    selectStudent: currentLang === 'si' ? "ශිෂ්‍යයා තෝරන්න" : "Select Student",
+    students: currentLang === 'si' ? "සිසුන්" : "students",
+    attendanceRate: currentLang === 'si' ? "පැමිණීමේ අනුපාතය" : "Attendance Rate",
+    trend: currentLang === 'si' ? "පැමිණීමේ ප්‍රවණතාව" : "Attendance Trend",
+    dailyBreakdown: currentLang === 'si' ? "දෛනික වාර්තාව" : "Daily Breakdown",
+    present: currentLang === 'si' ? "පැමිණ සිටි" : "Present",
+    absent: currentLang === 'si' ? "පැමිණ නොසිටි" : "Absent",
+    late: currentLang === 'si' ? "ප්‍රමාද වූ" : "Late",
+    sundays: currentLang === 'si' ? "ඉරිදා දිනයන්" : "Sundays",
+    poya: currentLang === 'si' ? "පොහෝය දින" : "Poya Days",
+    flower: currentLang === 'si' ? "මල් පූජා" : "Flower Offerings",
+    poyaDay: currentLang === 'si' ? "පොහෝය දිනය" : "Poya Day",
+    sunday: currentLang === 'si' ? "ඉරිදා" : "Sunday",
+    noSundaysInMonth: currentLang === 'si' ? "මෙම මාසයේ ඉරිදා දින නොමැත" : "No Sundays in this month",
+    flowerParticipation: currentLang === 'si' ? "මල් පූජා සහභාගිත්වය" : "Flower Offering Participation",
+    noData: currentLang === 'si' ? "දත්ත නොමැත" : "No data available",
+    student: currentLang === 'si' ? "සිසුවා" : "Student",
+    flowerType: currentLang === 'si' ? "මල් වර්ගය" : "Flower Type",
+    status: currentLang === 'si' ? "තත්ත්වය" : "Status",
+    brought: currentLang === 'si' ? "ගෙනා" : "Brought",
+    notBrought: currentLang === 'si' ? "ගෙන ආවේ නැත" : "Not Brought",
+    individualAnalysis: currentLang === 'si' ? "තනි සිසු විශ්ලේෂණය" : "Individual Student Analysis",
+    date: currentLang === 'si' ? "දිනය" : "Date",
+    errorFetch: currentLang === 'si' ? "දත්ත ලබා ගැනීමේ දෝෂයකි" : "Error fetching data"
+  };
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [attendanceData, setAttendanceData] = useState([]);
@@ -14,699 +66,677 @@ const AttendanceAnalysis = () => {
     highestAttendanceDay: '',
     lowestAttendanceDay: '',
   });
-
-  const currentDate = new Date();
-  const currentMonth = currentDate.getMonth() + 1;
-  const currentYear = currentDate.getFullYear();
-
+  const [flowerData, setFlowerData] = useState([]);
+  const [selectedStudent, setSelectedStudent] = useState('');
   const [filters, setFilters] = useState({
-    month: currentMonth,
-    year: currentYear,
-    classYear: '',
+    month: new Date().getMonth() + 1,
+    year: new Date().getFullYear(),
     classCode: '',
+    searchTerm: '',
     studentId: '',
-    searchTerm: ''
+    eventType: ''
   });
 
+  // Get month names based on current language
+  const getMonthNames = () => {
+    const months = [];
+    for (let i = 0; i < 12; i++) {
+      const date = new Date(2022, i, 1);
+      months.push(date.toLocaleString(currentLang, { month: 'long' }));
+    }
+    return months;
+  };
+
+  // Fetch students data
   const fetchStudents = useCallback(async () => {
     try {
-      const queryParams = new URLSearchParams();
-      if (filters.classYear) queryParams.append('classYear', filters.classYear);
-      if (filters.classCode) queryParams.append('classCode', filters.classCode);
-      
-      const res = await axios.get(`/api/students?${queryParams.toString()}`, {
+      setLoading(true);
+      const response = await axios.get('/api/students', {
         headers: {
           Authorization: `Bearer ${localStorage.getItem('token')}`
+        },
+        params: {
+          classYear: filters.year,
+          classCode: filters.classCode || undefined
         }
       });
-      
-      const studentsData = res.data.data || [];
-      setStudents(studentsData);
-      return studentsData;
+
+      if (response.data?.data) {
+        setStudents(response.data.data);
+        return response.data.data;
+      } else {
+        // Generate mock data for development
+        const mockStudents = generateMockStudents();
+        setStudents(mockStudents);
+        return mockStudents;
+      }
     } catch (error) {
       console.error("Error fetching students:", error);
-      
-      // For development/demonstration
-      const mockStudents = Array(15).fill(0).map((_, i) => ({
-        _id: `student-${i+1}`,
-        studentId: `SATHI-${filters.year}-${['A', 'B', 'C'][i % 3]}-${String(i+1).padStart(3, '0')}`,
-        name: { 
-          en: `Student ${i+1}`, 
-          si: `සිසුවා ${i+1}` 
-        },
-        classYear: filters.year || '2023',
-        classCode: ['A', 'B', 'C'][i % 3]
-      }));
+      // Fall back to mock data
+      const mockStudents = generateMockStudents();
       setStudents(mockStudents);
       return mockStudents;
     }
-  }, [filters.classYear, filters.classCode]);
+  }, [filters.year, filters.classCode]);
 
-  const fetchAttendanceData = useCallback(async (studentsList) => {
-    try {
-      const sundays = getSundaysInMonth(filters.month, filters.year);
+  // Generate mock students for development
+  const generateMockStudents = () => {
+    const classMapping = {
+      'ADH': '3-6',
+      'MET': '7-10',
+      'KHA': '11-13',
+      'NEK': '14+'
+    };
+    
+    return Array.from({ length: 40 }, (_, i) => {
+      const id = i + 1;
+      const classCode = ['ADH', 'MET', 'KHA', 'NEK'][Math.floor(Math.random() * 4)];
       
-      if (sundays.length === 0) {
-        setAttendanceData([]);
-        setSummary({
-          totalStudents: studentsList.length,
-          averageAttendance: 0,
-          highestAttendanceDay: t('admin.attendance.noSundays'),
-          lowestAttendanceDay: t('admin.attendance.noSundays')
-        });
-        return;
+      return {
+        _id: `mock-${id}`,
+        studentId: `SATHI-${filters.year}-${classCode}-${id.toString().padStart(3, '0')}`,
+        name: {
+          en: `Student ${id}`,
+          si: `ශිෂ්‍ය ${id}`
+        },
+        classYear: filters.year,
+        classCode,
+        ageGroup: classMapping[classCode]
+      };
+    });
+  };
+
+  // Generate mock attendance data
+  const generateMockData = useCallback((studentsList) => {
+    if (!studentsList || !studentsList.length) return [];
+
+    // Get all Sundays in the specified month
+    const sundays = getSundaysInMonth(filters.month, filters.year);
+    const attendanceRecords = [];
+    
+    // Mock data for each Sunday
+    sundays.forEach((sunday, index) => {
+      const date = sunday.toISOString().split('T')[0];
+      const isPoya = index === 1 || index === 3; // 2nd and 4th Sunday as mock Poya days
+      const isFlowerDay = index === 0; // 1st Sunday as mock Flower day
+      
+      // Random attendance with better probability for presence (75-90%)
+      const attendanceRate = 80 + Math.floor(Math.random() * 15) - Math.floor(Math.random() * 10);
+      const total = studentsList.length;
+      const present = Math.round((attendanceRate / 100) * total);
+      const late = Math.round(Math.random() * (total - present) * 0.3);
+      const absent = total - present - late;
+      
+      attendanceRecords.push({
+        date,
+        total,
+        present,
+        absent,
+        late,
+        attendanceRate,
+        isPoya,
+        isFlowerDay
+      });
+      
+      // Add flower offering data for flower days
+      if (isFlowerDay) {
+        const participants = studentsList
+          .filter(() => Math.random() > 0.3) // 70% participation rate
+          .map(student => ({
+            studentId: student.studentId,
+            name: student.name[currentLang],
+            flowerType: ['Rose', 'Lotus', 'Jasmine', 'Marigold', 'Sunflower'][Math.floor(Math.random() * 5)],
+            brought: Math.random() > 0.2 // 80% actually brought flowers
+          }));
+        
+        setFlowerData(prev => [
+          ...prev,
+          {
+            date,
+            participation: participants
+          }
+        ]);
       }
-      
-      // Prepare query parameters
-      let queryParams = new URLSearchParams();
-      queryParams.append('month', filters.month);
-      queryParams.append('year', filters.year);
-      
-      if (filters.classYear) queryParams.append('classYear', filters.classYear);
-      if (filters.classCode) queryParams.append('classCode', filters.classCode);
-      if (filters.studentId) queryParams.append('studentId', filters.studentId);
-      
-      // In a production environment, you would fetch real data:
-      /*
-      const res = await axios.get(`/api/attendance/monthly?${queryParams.toString()}`, {
+    });
+    
+    return attendanceRecords;
+  }, [filters.month, filters.year, currentLang]);
+
+  // Fetch or generate attendance data
+  const fetchAttendance = useCallback(async (studentsList) => {
+    try {
+      const response = await axios.get('/api/attendance/report', {
         headers: {
           Authorization: `Bearer ${localStorage.getItem('token')}`
+        },
+        params: {
+          year: filters.year,
+          month: filters.month,
+          classCode: filters.classCode || undefined
         }
       });
       
-      const attendanceData = res.data.data;
-      setAttendanceData(attendanceData);
-      */
-      
-      // For development/demonstration, generate mock data
-      const mockData = generateMockData(sundays, filters.month, filters.year, studentsList);
-      setAttendanceData(mockData);
-      
-      // Calculate and set summary statistics
-      calculateAndSetSummary(mockData, studentsList.length);
-      
+      if (response.data?.data) {
+        setAttendanceData(response.data.data);
+        // Calculate summary stats
+        if (response.data.data.length > 0) {
+          const avgAttendance = response.data.data.reduce((sum, day) => sum + day.attendanceRate, 0) / response.data.data.length;
+          const highest = response.data.data.reduce((max, day) => day.attendanceRate > max.rate ? { rate: day.attendanceRate, date: day.date } : max, { rate: 0, date: '' });
+          const lowest = response.data.data.reduce((min, day) => day.attendanceRate < min.rate ? { rate: day.attendanceRate, date: day.date } : min, { rate: 100, date: '' });
+          
+          setSummary({
+            totalStudents: studentsList?.length || 0,
+            averageAttendance: avgAttendance.toFixed(1),
+            highestAttendanceDay: highest.date,
+            lowestAttendanceDay: lowest.date
+          });
+        }
+        
+        // Get flower data
+        const flowerDays = response.data.data.filter(day => day.flowerOfferings > 0);
+        if (flowerDays.length > 0) {
+          setFlowerData(flowerDays.map(day => ({
+            date: day.date,
+            participation: day.students.filter(s => s.flowerOffering?.brought)
+          })));
+        }
+        
+      } else {
+        // Use mock data
+        const mockData = generateMockData(studentsList);
+        setAttendanceData(mockData);
+        
+        if (mockData.length > 0) {
+          const avgAttendance = mockData.reduce((sum, day) => sum + day.attendanceRate, 0) / mockData.length;
+          const highest = mockData.reduce((max, day) => day.attendanceRate > max.rate ? { rate: day.attendanceRate, date: day.date } : max, { rate: 0, date: '' });
+          const lowest = mockData.reduce((min, day) => day.attendanceRate < min.rate ? { rate: day.attendanceRate, date: day.date } : min, { rate: 100, date: '' });
+          
+          setSummary({
+            totalStudents: studentsList?.length || 0,
+            averageAttendance: avgAttendance.toFixed(1),
+            highestAttendanceDay: highest.date,
+            lowestAttendanceDay: lowest.date
+          });
+        }
+      }
     } catch (error) {
       console.error("Error fetching attendance data:", error);
       
-      // For development/demonstration
-      const sundays = getSundaysInMonth(filters.month, filters.year);
-      const mockData = generateMockData(sundays, filters.month, filters.year, students);
+      // Use mock data
+      const mockData = generateMockData(studentsList);
       setAttendanceData(mockData);
       
-      // Calculate and set summary statistics
-      calculateAndSetSummary(mockData, students.length);
+      if (mockData.length > 0) {
+        const avgAttendance = mockData.reduce((sum, day) => sum + day.attendanceRate, 0) / mockData.length;
+        setSummary({
+          totalStudents: studentsList?.length || 0,
+          averageAttendance: avgAttendance.toFixed(1),
+          highestAttendanceDay: mockData[0]?.date || '',
+          lowestAttendanceDay: mockData[mockData.length - 1]?.date || ''
+        });
+      }
+    } finally {
+      setLoading(false);
     }
-  }, [filters, students]);
+  }, [filters.year, filters.month, filters.classCode, generateMockData]);
 
+  // Main data fetch effect
   useEffect(() => {
-    setLoading(true);
     const fetchData = async () => {
+      // Reset when filters change
+      setFlowerData([]);
+      setError(null);
+      
       try {
-        await fetchStudents();
-        await fetchAttendanceData();
+        // First get students
+        const studentsData = await fetchStudents();
+        // Then get attendance based on students
+        await fetchAttendance(studentsData);
       } catch (error) {
-        console.error("Error fetching data:", error);
-        setError(error.message || "Failed to load attendance data");
-      } finally {
+        console.error("Error in data fetching:", error);
+        setError(L.errorFetch);
         setLoading(false);
       }
     };
-
+    
     fetchData();
-  }, [fetchStudents, fetchAttendanceData]);
+  }, [fetchStudents, fetchAttendance, filters, currentLang]);
 
-  // Get all Sundays in the selected month/year
-  const getSundaysInMonth = (month, year) => {
+  // Filtered students for dropdown
+  const filteredStudents = students.filter(student =>
+    !filters.searchTerm ||
+    (student.name[currentLang] && student.name[currentLang].toLowerCase().includes(filters.searchTerm.toLowerCase())) ||
+    student.studentId.toLowerCase().includes(filters.searchTerm.toLowerCase())
+  );
+
+  // Export CSV
+  const handleExportCSV = () => {
+    if (!attendanceData || attendanceData.length === 0) return;
+    
+    // Create CSV content
+    const headers = "Date,Total Students,Present,Absent,Late,Attendance Rate\n";
+    const rows = attendanceData.map(day => 
+      `${day.date},${day.total},${day.present},${day.absent},${day.late},${day.attendanceRate}%`
+    ).join('\n');
+    
+    const csvContent = headers + rows;
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    
+    const link = document.createElement('a');
+    link.setAttribute('href', url);
+    link.setAttribute('download', `attendance-${filters.year}-${filters.month}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  // Class-wise summary
+  const classSummary = ['ADH', 'MET', 'KHA', 'NEK'].map(code => {
+    const classStudents = students.filter(s => s.classCode === code);
+    const total = classStudents.length;
+    
+    // Calculate attendance percentage for this class
+    let percent = 0;
+    if (attendanceData.length > 0) {
+      // Mock calculation (in real app, use actual data)
+      percent = (70 + Math.floor(Math.random() * 25)).toFixed(1);
+    }
+    
+    return {
+      code,
+      label: CLASS_LABELS[code][currentLang],
+      total,
+      percent
+    };
+  });
+
+  // Pie chart data for present/absent/late
+  const pieData = [
+    { name: L.present, value: attendanceData.reduce((sum, d) => sum + d.present, 0) },
+    { name: L.absent, value: attendanceData.reduce((sum, d) => sum + d.absent, 0) },
+    { name: L.late, value: attendanceData.reduce((sum, d) => sum + d.late, 0) }
+  ];
+
+  // Get Sundays in current month
+  function getSundaysInMonth(month, year) {
     const sundays = [];
     const date = new Date(year, month - 1, 1);
     
-    // Find first Sunday
+    // Move to the first Sunday in the month
     while (date.getDay() !== 0) {
       date.setDate(date.getDate() + 1);
     }
     
-    // Get all Sundays in the month
+    // Collect all Sundays
     while (date.getMonth() === month - 1) {
       sundays.push(new Date(date));
       date.setDate(date.getDate() + 7);
     }
     
     return sundays;
-  };
-  
-  // Calculate and set summary statistics
-  const calculateAndSetSummary = (attendanceData, totalStudentCount) => {
-    if (!attendanceData?.dailyAttendance) return;
-    
-    let totalPresent = 0;
-    let highestDay = { date: '', count: 0 };
-    let lowestDay = { date: '', count: totalStudentCount };
-    
-    Object.entries(attendanceData.dailyAttendance).forEach(([date, data]) => {
-      totalPresent += data.presentCount || 0;
-      
-      if ((data.presentCount || 0) > highestDay.count) {
-        highestDay = { date, count: data.presentCount || 0 };
-      }
-      
-      if ((data.presentCount || 0) < lowestDay.count && Object.keys(attendanceData.dailyAttendance).length > 1) {
-        lowestDay = { date, count: data.presentCount || 0 };
-      }
-    });
-    
-    const daysCount = Object.keys(attendanceData.dailyAttendance).length;
-    const averageAttendance = daysCount > 0 
-      ? (totalPresent / (daysCount * totalStudentCount) * 100).toFixed(1) 
-      : 0;
-    
-    setSummary({
-      totalStudents: totalStudentCount,
-      averageAttendance,
-      highestAttendanceDay: highestDay.date 
-        ? `${new Date(highestDay.date).toLocaleDateString()} (${highestDay.count} ${t('admin.students')})`
-        : t('admin.attendance.noData'),
-      lowestAttendanceDay: lowestDay.date 
-        ? `${new Date(lowestDay.date).toLocaleDateString()} (${lowestDay.count} ${t('admin.students')})`
-        : t('admin.attendance.noData')
-    });
-  };
+  }
 
-  // Function to generate realistic mock data for Sunday-only classes
-  const generateMockData = (sundays, month, year, studentsList) => {
-    const mockDailyAttendance = {};
-    const totalStudentCount = studentsList.length;
+  // Individual student attendance data
+  const handleStudentSelect = useCallback(async (studentId) => {
+    setSelectedStudent(studentId);
     
-    sundays.forEach(sunday => {
-      const dateStr = sunday.toISOString().split('T')[0];
-      
-      // Generate student-specific attendance data
-      const studentAttendance = {};
-      studentsList.forEach(student => {
-        // Randomize attendance: 80% chance of present, 10% late, 10% absent
-        const rand = Math.random();
-        const status = rand < 0.8 ? 'present' : (rand < 0.9 ? 'late' : 'absent');
-        
-        studentAttendance[student._id] = {
-          status,
-          reason: status !== 'present' ? ['Sick', 'Family event', 'Unknown'][Math.floor(Math.random() * 3)] : ''
-        };
+    if (!studentId) return;
+    
+    setLoading(true);
+    
+    try {
+      // Try to get actual data from API
+      const response = await axios.get(`/api/attendance/student/${studentId}`, {
+        headers: {
+          Authorization: `Bearer ${localStorage.getItem('token')}`
+        },
+        params: {
+          year: filters.year,
+          month: filters.month
+        }
       });
       
-      // Count statistics
-      const presentCount = Object.values(studentAttendance).filter(a => a.status === 'present').length;
-      const absentCount = Object.values(studentAttendance).filter(a => a.status === 'absent').length;
-      const lateCount = Object.values(studentAttendance).filter(a => a.status === 'late').length;
-      
-      mockDailyAttendance[dateStr] = {
-        date: dateStr,
-        totalCount: totalStudentCount,
-        presentCount,
-        absentCount,
-        lateCount,
-        attendanceRate: totalStudentCount > 0 ? ((presentCount / totalStudentCount) * 100).toFixed(1) : '0',
-        studentAttendance
-      };
-    });
-    
-    return {
-      month,
-      year,
-      totalStudents: totalStudentCount,
-      dailyAttendance: mockDailyAttendance,
-      students: studentsList.map(s => ({
-        id: s._id,
-        studentId: s.studentId,
-        name: s.name
-      }))
-    };
-  };
-
-  const handleFilterChange = (e) => {
-    const { name, value } = e.target;
-    setFilters(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handleStudentSelect = (e) => {
-    const selectedId = e.target.value;
-    setFilters(prev => ({ ...prev, studentId: selectedId }));
-  };
-
-  const handleSearch = (e) => {
-    setFilters(prev => ({ ...prev, searchTerm: e.target.value }));
-  };
-
-  const handleExportCSV = () => {
-    if (!attendanceData?.dailyAttendance) return;
-    
-    // Create CSV header row
-    const headers = ["Date", "Total Students", "Present", "Absent", "Late", "Attendance Rate"];
-    
-    // If a specific student is selected, add their details to the header
-    const selectedStudent = filters.studentId ? students.find(s => s._id === filters.studentId) : null;
-    if (selectedStudent) {
-      headers[0] = `Date (Student: ${selectedStudent.studentId} - ${selectedStudent.name.en})`;
+      if (response.data?.data) {
+        // Format real data
+      } else {
+        // Generate mock data for development
+      }
+    } catch (error) {
+      console.error("Error fetching student attendance:", error);
+      // Generate mock data for selected student
+    } finally {
+      setLoading(false);
     }
-    
-    // Create CSV content
-    const headerRow = headers.join(",");
-    const dataRows = Object.values(attendanceData.dailyAttendance).map(day => {
-      const row = [
-        new Date(day.date).toLocaleDateString(),
-        day.totalCount,
-        day.presentCount,
-        day.absentCount,
-        day.lateCount,
-        `${day.attendanceRate}%`
-      ];
-      return row.join(",");
-    }).join("\n");
-    
-    const csvContent = `${headerRow}\n${dataRows}`;
-    
-    // Create and trigger download
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.setAttribute('href', url);
-    link.setAttribute('download', `attendance-${filters.year}-${String(filters.month).padStart(2, '0')}${selectedStudent ? '-' + selectedStudent.studentId : ''}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-  
-  const months = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
-  ];
-  
-  const filteredStudents = students.filter(student => 
-    !filters.searchTerm || 
-    student.name.en.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
-    student.name.si?.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
-    student.studentId.toLowerCase().includes(filters.searchTerm.toLowerCase())
-  );
+  }, [filters.year, filters.month]);
 
   return (
     <div className="space-y-6">
       <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
+        {/* Header with title and export button */}
         <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4 md:mb-0">
-            Monthly Attendance Analysis
-            <span className="ml-2 text-sm font-normal text-blue-600">
-              (Sundays Only)
-            </span>
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 md:mb-0">
+            {L.analysis}
           </h2>
-          
-          <div className="flex space-x-2">
+          <div className="flex gap-2">
             <button
               onClick={handleExportCSV}
               className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
-              disabled={!attendanceData?.dailyAttendance || Object.keys(attendanceData.dailyAttendance).length === 0}
+              disabled={!attendanceData.length}
             >
-              {t('admin.export.csv')}
+              {L.exportCSV}
             </button>
           </div>
         </div>
-        
+
         {/* Filters */}
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              {t('admin.attendance.month')}
+              {L.month}
             </label>
             <select
               name="month"
               value={filters.month}
-              onChange={handleFilterChange}
+              onChange={e => setFilters(f => ({ ...f, month: Number(e.target.value) }))}
               className="w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:border-blue-300 dark:bg-gray-700 dark:text-white dark:border-gray-600"
             >
-              {months.map((month, index) => (
-                <option key={index} value={index + 1}>
-                  {t(`admin.months.${month.toLowerCase()}`)}
+              {getMonthNames().map((month, idx) => (
+                <option key={idx} value={idx + 1}>
+                  {month}
                 </option>
               ))}
             </select>
           </div>
-          
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              {t('admin.attendance.year')}
+              {L.year}
             </label>
             <select
               name="year"
               value={filters.year}
-              onChange={handleFilterChange}
+              onChange={e => setFilters(f => ({ ...f, year: Number(e.target.value) }))}
               className="w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:border-blue-300 dark:bg-gray-700 dark:text-white dark:border-gray-600"
             >
               {[...Array(5)].map((_, i) => (
-                <option key={i} value={currentYear - i}>
-                  {currentYear - i}
+                <option key={i} value={new Date().getFullYear() - i}>
+                  {new Date().getFullYear() - i}
                 </option>
               ))}
             </select>
           </div>
-          
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              Class
+              {L.class}
             </label>
             <select
               name="classCode"
               value={filters.classCode}
-              onChange={handleFilterChange}
+              onChange={e => setFilters(f => ({ ...f, classCode: e.target.value }))}
               className="w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:border-blue-300 dark:bg-gray-700 dark:text-white dark:border-gray-600"
             >
-              <option value="">All Classes</option>
-              <option value="ADH">Adhiṭṭhāna (අධිඨාන)</option>
-              <option value="MET">Mettā (මෙත්තා)</option>
-              <option value="KHA">Khanti (ඛන්ති)</option>
-              <option value="NEK">Nekkhamma (නෙක්කම්ම)</option>
+              <option value="">{L.all}</option>
+              <option value="ADH">{CLASS_LABELS.ADH[currentLang]}</option>
+              <option value="MET">{CLASS_LABELS.MET[currentLang]}</option>
+              <option value="KHA">{CLASS_LABELS.KHA[currentLang]}</option>
+              <option value="NEK">{CLASS_LABELS.NEK[currentLang]}</option>
             </select>
           </div>
-          
           <div className="md:col-span-2">
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              {t('admin.search')}
+              {L.search}
             </label>
             <input
               type="text"
               value={filters.searchTerm}
-              onChange={handleSearch}
-              placeholder={t('admin.attendance.searchPlaceholder')}
+              onChange={e => setFilters(f => ({ ...f, searchTerm: e.target.value }))}
+              placeholder={L.searchPlaceholder}
               className="w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:border-blue-300 dark:bg-gray-700 dark:text-white dark:border-gray-600"
             />
           </div>
         </div>
 
+        {/* Student Filter */}
         {filteredStudents.length > 0 && (
           <div className="mb-6">
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              {t('admin.students.selectStudent')}
+              {L.selectStudent}
             </label>
             <select
-              value={filters.studentId}
-              onChange={handleStudentSelect}
+              value={selectedStudent}
+              onChange={e => handleStudentSelect(e.target.value)}
               className="w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:border-blue-300 dark:bg-gray-700 dark:text-white dark:border-gray-600"
             >
-              <option value="">{t('admin.filters.all')}</option>
+              <option value="">{L.all}</option>
               {filteredStudents.map(student => (
                 <option key={student._id} value={student._id}>
-                  {student.studentId} - {student.name.en}
+                  {student.studentId} - {student.name[currentLang]}
                 </option>
               ))}
             </select>
           </div>
         )}
-        
-        {/* Error Message */}
+
+        {/* Error/Loading */}
         {error && (
           <div className="p-3 mb-4 bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300 rounded">
             {error}
           </div>
         )}
-        
-        {/* Loading Indicator */}
         {loading && (
           <div className="flex justify-center items-center p-8">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
           </div>
         )}
-        
-        {/* Summary Statistics */}
+
+        {/* Class-wise Summary */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-blue-50 dark:bg-blue-900 p-4 rounded-lg">
-            <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              {t('admin.attendance.totalStudents')}
-            </h3>
-            <p className="text-lg font-semibold text-blue-800 dark:text-blue-200">
-              {summary.totalStudents}
-            </p>
-          </div>
-          
-          <div className="bg-green-50 dark:bg-green-900 p-4 rounded-lg">
-            <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              {t('admin.attendance.averageAttendance')}
-            </h3>
-            <p className="text-lg font-semibold text-green-800 dark:text-green-200">
-              {summary.averageAttendance}%
-            </p>
-          </div>
-          
-          <div className="bg-purple-50 dark:bg-purple-900 p-4 rounded-lg">
-            <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              {t('admin.attendance.highestAttendance')}
-            </h3>
-            <p className="text-lg font-semibold text-purple-800 dark:text-purple-200">
-              {summary.highestAttendanceDay}
-            </p>
-          </div>
-          
-          <div className="bg-yellow-50 dark:bg-yellow-900 p-4 rounded-lg">
-            <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              {t('admin.attendance.lowestAttendance')}
-            </h3>
-            <p className="text-lg font-semibold text-yellow-800 dark:text-yellow-200">
-              {summary.lowestAttendanceDay}
-            </p>
+          {classSummary.map((cls) => (
+            <div key={cls.code} className="bg-blue-50 dark:bg-blue-900 p-4 rounded-lg">
+              <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                {cls.label}
+              </h3>
+              <p className="text-lg font-semibold text-blue-800 dark:text-blue-200">
+                {cls.total} {L.students}
+              </p>
+              <p className="text-sm text-green-700 dark:text-green-300">
+                {L.attendanceRate}: {cls.percent}%
+              </p>
+            </div>
+          ))}
+        </div>
+
+        {/* Attendance Trend Chart */}
+        <div className="mb-8">
+          <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+            {L.trend}
+          </h3>
+          <div style={{ width: '100%', height: 250 }}>
+            <ResponsiveContainer>
+              <LineChart data={attendanceData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="date" tickFormatter={d => new Date(d).getDate()} />
+                <YAxis domain={[0, 100]} tickFormatter={v => `${v}%`} />
+                <Tooltip formatter={v => `${v}%`} labelFormatter={d => new Date(d).toLocaleDateString(currentLang)} />
+                <Line type="monotone" dataKey="attendanceRate" stroke="#10b981" strokeWidth={2} dot />
+              </LineChart>
+            </ResponsiveContainer>
           </div>
         </div>
-        
-        {/* Sundays Calendar for selected month */}
-        <div className="mb-6">
+
+        {/* Daily Breakdown & Attendance Rate */}
+        <div className="mb-8 grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+              {L.dailyBreakdown}
+            </h3>
+            <div style={{ width: '100%', height: 250 }}>
+              <ResponsiveContainer>
+                <BarChart data={attendanceData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="date" tickFormatter={d => new Date(d).getDate()} />
+                  <YAxis />
+                  <Tooltip />
+                  <Legend />
+                  <Bar dataKey="present" fill="#10b981" name={L.present} />
+                  <Bar dataKey="absent" fill="#ef4444" name={L.absent} />
+                  <Bar dataKey="late" fill="#f59e42" name={L.late} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+          <div>
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+              {L.attendanceRate}
+            </h3>
+            <div style={{ width: '100%', height: 250 }}>
+              <ResponsiveContainer>
+                <PieChart>
+                  <Pie
+                    data={pieData}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={80}
+                    label
+                  >
+                    {pieData.map((entry, idx) => (
+                      <Cell key={`cell-${idx}`} fill={COLORS[idx % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </div>
+
+        {/* Calendar View for Sundays/Poya/Flower Days */}
+        <div className="mb-8">
           <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
-            {t('admin.attendance.sundays')} - {t(`admin.months.${months[filters.month-1].toLowerCase()}`)} {filters.year}
+            {L.sundays} / {L.poya} / {L.flower} - {getMonthNames()[filters.month-1]} {filters.year}
           </h3>
-          
           <div className="flex flex-wrap gap-2">
-            {getSundaysInMonth(filters.month, filters.year).map((sunday) => {
-              const dateStr = sunday.toISOString().split('T')[0];
-              const dayData = attendanceData.dailyAttendance?.[dateStr];
-              const attendanceRate = dayData ? dayData.attendanceRate : '0';
+            {getSundaysInMonth(filters.month, filters.year).map((sunday, index) => {
+              const date = sunday.toISOString().split('T')[0];
+              const dayData = attendanceData.find(d => d.date === date) || { attendanceRate: 0 };
+              const isPoya = dayData.isPoya;
+              const isFlower = dayData.isFlowerDay;
               
               return (
-                <div key={dateStr} className="bg-white dark:bg-gray-700 rounded-lg shadow p-4 w-32">
+                <div 
+                  key={`${date}-${index}`} // Added index to ensure unique keys
+                  className={`rounded-lg shadow p-4 w-36 ${
+                    isPoya ? 'bg-yellow-100 dark:bg-yellow-900' :
+                    isFlower ? 'bg-pink-100 dark:bg-pink-900' :
+                    'bg-white dark:bg-gray-700'
+                  }`}
+                >
                   <div className="text-center">
                     <div className="text-sm font-medium">{sunday.getDate()}</div>
-                    <div className="text-xs text-gray-500">Sunday</div>
+                    <div className="text-xs text-gray-500">
+                      {isPoya ? L.poyaDay : 
+                       isFlower ? L.flower :
+                       L.sunday}
+                    </div>
                     <div className="mt-2">
                       <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div 
+                        <div
                           className="bg-green-600 h-2 rounded-full"
-                          style={{ width: `${attendanceRate}%` }}
+                          style={{ width: `${dayData.attendanceRate}%` }}
                         ></div>
                       </div>
                     </div>
                     <div className="mt-1 text-sm font-medium">
-                      {attendanceRate}%
+                      {dayData.attendanceRate}%
                     </div>
                   </div>
                 </div>
               );
             })}
+            
+            {getSundaysInMonth(filters.month, filters.year).length === 0 && (
+              <div className="text-center p-6 text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-900 rounded w-full">
+                {L.noSundaysInMonth}
+              </div>
+            )}
           </div>
-          
-          {getSundaysInMonth(filters.month, filters.year).length === 0 && (
-            <div className="text-center p-4 text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-900 rounded">
-              {t('admin.attendance.noSundaysInMonth')}
+        </div>
+
+        {/* Flower Offering Participation */}
+        <div className="mb-8">
+          <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+            {L.flowerParticipation}
+          </h3>
+          {flowerData.length === 0 ? (
+            <div className="text-center p-6 text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-900 rounded">
+              {L.noData}
             </div>
+          ) : (
+            flowerData.map((day, idx) => (
+              <div key={`flower-${day.date}-${idx}`} className="mb-4">
+                <div className="font-semibold mb-2">
+                  {new Date(day.date).toLocaleDateString(currentLang)} ({L.flower})
+                </div>
+                <div className="overflow-x-auto">
+                  <table className="min-w-full bg-white dark:bg-gray-800 rounded">
+                    <thead>
+                      <tr>
+                        <th className="px-2 py-1 text-left text-xs font-medium">{L.student}</th>
+                        <th className="px-2 py-1 text-left text-xs font-medium">{L.flowerType}</th>
+                        <th className="px-2 py-1 text-left text-xs font-medium">{L.status}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {day.participation.map((stu, index) => (
+                        <tr key={`${stu.studentId || ''}-${index}`}>
+                          <td className="px-2 py-1 text-xs">{stu.name} ({stu.studentId})</td>
+                          <td className="px-2 py-1 text-xs">{stu.flowerType || '-'}</td>
+                          <td className="px-2 py-1 text-xs">
+                            {stu.brought ? L.brought : L.notBrought}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ))
           )}
         </div>
-        
-        {/* Daily Breakdown Table */}
-        <div>
-          <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
-            {t('admin.attendance.dailyBreakdown')}
-          </h3>
-          
-          {!loading && attendanceData?.dailyAttendance && Object.keys(attendanceData.dailyAttendance).length > 0 ? (
+
+        {/* Individual Student Analysis */}
+        {selectedStudent && (
+          <div className="mb-8">
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+              {L.individualAnalysis}
+            </h3>
             <div className="overflow-x-auto rounded-lg shadow">
               <table className="min-w-full bg-white dark:bg-gray-800">
-                <thead className="bg-gray-100 dark:bg-gray-700">
+                <thead>
                   <tr>
-                    <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
-                      {t('admin.attendance.date')}
-                    </th>
-                    <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
-                      {t('admin.attendance.totalStudents')}
-                    </th>
-                    <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
-                      {t('admin.attendance.present')}
-                    </th>
-                    <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
-                      {t('admin.attendance.absent')}
-                    </th>
-                    <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
-                      {t('admin.attendance.late')}
-                    </th>
-                    <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
-                      {t('admin.attendance.attendanceRate')}
-                    </th>
+                    <th className="px-4 py-2 text-left text-sm font-medium">{L.date}</th>
+                    <th className="px-4 py-2 text-left text-sm font-medium">{L.present}</th>
+                    <th className="px-4 py-2 text-left text-sm font-medium">{L.absent}</th>
+                    <th className="px-4 py-2 text-left text-sm font-medium">{L.late}</th>
                   </tr>
                 </thead>
-                
-                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                  {Object.values(attendanceData.dailyAttendance)
-                    .sort((a, b) => new Date(a.date) - new Date(b.date))
-                    .map(day => (
-                      <tr key={day.date} className="hover:bg-gray-50 dark:hover:bg-gray-900">
-                        <td className="px-4 py-2 text-sm text-gray-900 dark:text-white">
-                          {new Date(day.date).toLocaleDateString()}
-                          <span className="ml-2 text-xs text-blue-600 dark:text-blue-400">
-                            {t('admin.attendance.sunday')}
-                          </span>
-                        </td>
-                        <td className="px-4 py-2 text-sm text-gray-900 dark:text-white">
-                          {day.totalCount}
-                        </td>
-                        <td className="px-4 py-2 text-sm text-green-600 dark:text-green-400">
-                          {day.presentCount}
-                        </td>
-                        <td className="px-4 py-2 text-sm text-red-600 dark:text-red-400">
-                          {day.absentCount}
-                        </td>
-                        <td className="px-4 py-2 text-sm text-yellow-600 dark:text-yellow-400">
-                          {day.lateCount}
-                        </td>
-                        <td className="px-4 py-2 text-sm">
-                          <div className="flex items-center">
-                            <div className="w-16 bg-gray-200 rounded-full h-2.5 mr-2">
-                              <div 
-                                className="bg-green-600 h-2.5 rounded-full" 
-                                style={{ width: `${day.attendanceRate}%` }}
-                              ></div>
-                            </div>
-                            <span>{day.attendanceRate}%</span>
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
+                <tbody>
+                  {attendanceData.map((day, idx) => (
+                    <tr key={`${day.date}-${idx}`}>
+                      <td className="px-4 py-2 text-sm">
+                        {new Date(day.date).toLocaleDateString(currentLang)}
+                      </td>
+                      <td className="px-4 py-2 text-sm">{Math.random() > 0.2 ? '1' : '0'}</td>
+                      <td className="px-4 py-2 text-sm">{Math.random() > 0.8 ? '1' : '0'}</td>
+                      <td className="px-4 py-2 text-sm">{Math.random() > 0.9 ? '1' : '0'}</td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
             </div>
-          ) : !loading ? (
-            <div className="text-center p-6 text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-900 rounded">
-              {t('admin.attendance.noDataFound')}
-            </div>
-          ) : null}
-        </div>
-        
-        {/* Student Details - Only show if a specific student is selected */}
-        {filters.studentId && (
-          <div className="mt-8">
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
-              {t('admin.attendance.studentDetails')}
-            </h3>
-            
-            {(() => {
-              const student = students.find(s => s._id === filters.studentId);
-              if (!student) return null;
-              
-              const records = Object.entries(attendanceData.dailyAttendance || {}).map(([date, data]) => {
-                return {
-                  date,
-                  status: data.studentAttendance?.[student._id]?.status || 'absent',
-                  reason: data.studentAttendance?.[student._id]?.reason || ''
-                };
-              });
-              
-              const presentCount = records.filter(r => r.status === 'present').length;
-              const absentCount = records.filter(r => r.status === 'absent').length;
-              const lateCount = records.filter(r => r.status === 'late').length;
-              const totalClasses = records.length;
-              const attendanceRate = totalClasses > 0 ? ((presentCount / totalClasses) * 100).toFixed(1) : '0';
-              
-              return (
-                <div>
-                  <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-4 mb-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <h4 className="font-medium text-gray-900 dark:text-white">
-                          {student.name.en}
-                        </h4>
-                        <p className="text-sm text-gray-500 dark:text-gray-400">
-                          {student.studentId}
-                        </p>
-                      </div>
-                      <div>
-                        <div className="flex flex-wrap gap-2 justify-end">
-                          <div className="text-center">
-                            <div className="text-sm text-gray-500 dark:text-gray-400">
-                              {t('admin.attendance.present')}
-                            </div>
-                            <div className="text-lg font-medium text-green-600 dark:text-green-400">
-                              {presentCount}
-                            </div>
-                          </div>
-                          <div className="text-center">
-                            <div className="text-sm text-gray-500 dark:text-gray-400">
-                              {t('admin.attendance.absent')}
-                            </div>
-                            <div className="text-lg font-medium text-red-600 dark:text-red-400">
-                              {absentCount}
-                            </div>
-                          </div>
-                          <div className="text-center">
-                            <div className="text-sm text-gray-500 dark:text-gray-400">
-                              {t('admin.attendance.late')}
-                            </div>
-                            <div className="text-lg font-medium text-yellow-600 dark:text-yellow-400">
-                              {lateCount}
-                            </div>
-                          </div>
-                          <div className="text-center">
-                            <div className="text-sm text-gray-500 dark:text-gray-400">
-                              {t('admin.attendance.attendanceRate')}
-                            </div>
-                            <div className="text-lg font-medium text-blue-600 dark:text-blue-400">
-                              {attendanceRate}%
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="overflow-x-auto rounded-lg shadow">
-                    <table className="min-w-full bg-white dark:bg-gray-800">
-                      <thead className="bg-gray-100 dark:bg-gray-700">
-                        <tr>
-                          <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
-                            {t('admin.attendance.date')}
-                          </th>
-                          <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
-                            {t('admin.attendance.status')}
-                          </th>
-                          <th className="px-4 py-2 text-left text-sm font-medium text-gray-700 dark:text-gray-300">
-                            {t('admin.attendance.reason')}
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
-                        {records.sort((a, b) => new Date(a.date) - new Date(b.date)).map((record) => (
-                          <tr key={record.date} className="hover:bg-gray-50 dark:hover:bg-gray-900">
-                            <td className="px-4 py-2 text-sm text-gray-900 dark:text-white">
-                              {new Date(record.date).toLocaleDateString()}
-                            </td>
-                            <td className="px-4 py-2 text-sm">
-                              <span className={`px-2 py-1 rounded text-xs font-medium
-                                ${record.status === 'present' ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' : 
-                                  record.status === 'absent' ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' : 
-                                  'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200'}`}
-                              >
-                                {t(`admin.attendance.${record.status}`)}
-                              </span>
-                            </td>
-                            <td className="px-4 py-2 text-sm text-gray-900 dark:text-white">
-                              {record.reason || '-'}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              );
-            })()}
           </div>
         )}
       </div>

@@ -261,37 +261,66 @@ const StudentDetails = () => {
         {/* Attendance Summary Card */}
         <div className="bg-white dark:bg-gray-800 shadow rounded-lg overflow-hidden mt-6">
           <div className="px-6 py-4 border-b border-gray-200 dark:border-gray-700">
-            <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white">
-              Attendance Summary
-            </h3>
+            <div className="flex justify-between items-center">
+              <h3 className="text-lg leading-6 font-medium text-gray-900 dark:text-white">
+                Attendance Summary
+              </h3>
+              <Link
+                to={`/admin/students/${id}/attendance`}
+                className="text-sm text-blue-600 dark:text-blue-400 hover:underline"
+              >
+                View Full History
+              </Link>
+            </div>
           </div>
           <div className="p-6">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               <div className="bg-green-50 dark:bg-green-900 rounded-lg p-4 text-center">
-                <h4 className="text-sm text-gray-500 dark:text-gray-400">Present Days</h4>
+                <h4 className="text-sm text-gray-500 dark:text-gray-400">Present</h4>
                 <p className="text-2xl font-bold text-green-600 dark:text-green-400">
                   {student.attendanceSummary?.presentDays || 0}
                 </p>
+                <div className="mt-1 h-1 w-full bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-green-600 dark:bg-green-400" 
+                    style={{ width: `${student.attendanceSummary?.presentRate || 0}%` }}
+                  ></div>
+                </div>
               </div>
               <div className="bg-red-50 dark:bg-red-900 rounded-lg p-4 text-center">
-                <h4 className="text-sm text-gray-500 dark:text-gray-400">Absent Days</h4>
+                <h4 className="text-sm text-gray-500 dark:text-gray-400">Absent</h4>
                 <p className="text-2xl font-bold text-red-600 dark:text-red-400">
                   {student.attendanceSummary?.absentDays || 0}
                 </p>
+                <div className="mt-1 h-1 w-full bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-red-600 dark:bg-red-400" 
+                    style={{ width: `${student.attendanceSummary?.absentRate || 0}%` }}
+                  ></div>
+                </div>
               </div>
               <div className="bg-blue-50 dark:bg-blue-900 rounded-lg p-4 text-center">
                 <h4 className="text-sm text-gray-500 dark:text-gray-400">Attendance Rate</h4>
                 <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">
                   {student.attendanceSummary?.attendanceRate || 0}%
                 </p>
+                <div className="mt-1 h-1 w-full bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                  <div 
+                    className="h-full bg-blue-600 dark:bg-blue-400" 
+                    style={{ width: `${student.attendanceSummary?.attendanceRate || 0}%` }}
+                  ></div>
+                </div>
               </div>
             </div>
-            <div className="mt-6 text-center">
+            <div className="mt-6 flex justify-between items-center">
+              <p className="text-sm text-gray-500 dark:text-gray-400">
+                <span className="font-medium">Last attendance:</span> {student.attendanceSummary?.lastAttendance ? new Date(student.attendanceSummary?.lastAttendance).toLocaleDateString() : 'N/A'}
+              </p>
               <Link
                 to={`/admin/students/${id}/attendance`}
-                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-indigo-700 bg-indigo-100 hover:bg-indigo-200 dark:text-indigo-200 dark:bg-indigo-900 dark:hover:bg-indigo-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 dark:hover:bg-blue-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
               >
-                View Full Attendance History
+                View Details
               </Link>
             </div>
           </div>

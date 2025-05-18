@@ -102,6 +102,7 @@ const Students = () => {
     try {
       setLoading(true);
       
+      // Check if student exists before attempting to delete
       if (!studentToDelete || !studentToDelete._id) {
         throw new Error('Invalid student selection');
       }
@@ -116,20 +117,24 @@ const Students = () => {
       setShowDeleteModal(false);
       setStudentToDelete(null);
       
-      // Show success message
-      setSuccessMessage(`Student "${studentToDelete.name.en}" has been deleted successfully.`);
-      
-      // Refresh student list
-      fetchStudents();
-      
-      // Automatically hide the message after 3 seconds
-      setTimeout(() => {
-        setSuccessMessage('');
-      }, 3000);
-      
+      if (response.data.success) {
+        // Show success message
+        setSuccessMessage(`Student deleted successfully`);
+        
+        // Refresh student list
+        fetchStudents();
+        
+        // Auto-hide the success message after 3 seconds
+        setTimeout(() => {
+          setSuccessMessage('');
+        }, 3000);
+      } else {
+        throw new Error(response.data.message || 'Failed to delete student');
+      }
     } catch (err) {
       console.error('Error deleting student:', err);
       
+      // Handle different error scenarios
       let errorMessage = 'Failed to delete student. Please try again.';
       
       if (err.response) {
@@ -138,6 +143,8 @@ const Students = () => {
         } else if (err.response.data && err.response.data.message) {
           errorMessage = err.response.data.message;
         }
+      } else if (err.message) {
+        errorMessage = err.message;
       }
       
       setError(errorMessage);

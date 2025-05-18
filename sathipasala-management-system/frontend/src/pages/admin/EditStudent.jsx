@@ -104,25 +104,22 @@ const EditStudent = () => {
       age--;
     }
     
-    let ageGroup;
+    // Determine age group based on age
+    let ageGroup = '';
     if (age >= 0 && age <= 6) {
       ageGroup = '3-6';
-      setFormData(prev => ({...prev, classCode: 'ADH'}));
     } else if (age >= 7 && age <= 10) {
       ageGroup = '7-10';
-      setFormData(prev => ({...prev, classCode: 'MET'}));
     } else if (age >= 11 && age <= 13) {
       ageGroup = '11-13';
-      setFormData(prev => ({...prev, classCode: 'KHA'}));
     } else if (age >= 14) {
       ageGroup = '14+';
-      setFormData(prev => ({...prev, classCode: 'NEK'}));
     }
     
     setFormData(prev => ({...prev, ageGroup}));
   };
   
-  // Modify the handleChange function
+  // Handle form input changes
   const handleChange = (e) => {
     const { name, value } = e.target;
     
@@ -147,6 +144,7 @@ const EditStudent = () => {
     }
   };
   
+  // Handle image upload
   const handleImageChange = (e) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
@@ -154,13 +152,13 @@ const EditStudent = () => {
       // Validate file type
       const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
       if (!allowedTypes.includes(file.type)) {
-        setError(t('common.errors.invalidImageType'));
+        setError('Invalid file type. Please use JPG, PNG or GIF format.');
         return;
       }
       
       // Validate file size (max 2MB)
       if (file.size > 2 * 1024 * 1024) {
-        setError(t('common.errors.imageTooLarge'));
+        setError('Image is too large. Maximum size is 2MB.');
         return;
       }
       
@@ -175,6 +173,7 @@ const EditStudent = () => {
     }
   };
   
+  // Handle image removal
   const handleRemoveImage = () => {
     setProfileImage(null);
     setImagePreview(null);
@@ -184,6 +183,7 @@ const EditStudent = () => {
     }
   };
   
+  // Form submission handler
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
@@ -195,10 +195,8 @@ const EditStudent = () => {
       const submitData = new FormData();
       
       // Add all form fields
-      submitData.append('name[en]', `${formData.firstName} ${formData.lastName}`);
-      // Use the same name for Sinhala (as requested)
-      submitData.append('name[si]', `${formData.firstName} ${formData.lastName}`);
-      
+      submitData.append('name[en]', `${formData.firstName} ${formData.lastName}`.trim());
+      submitData.append('name[si]', `${formData.firstName} ${formData.lastName}`.trim());
       submitData.append('dateOfBirth', formData.dateOfBirth);
       submitData.append('gender', formData.gender);
       submitData.append('ageGroup', formData.ageGroup);
@@ -235,13 +233,16 @@ const EditStudent = () => {
         }
       });
       
-      setSuccess(t('admin.students.updateSuccess'));
-      
-      // Navigate back to student details after short delay
-      setTimeout(() => {
-        navigate(`/admin/students/${id}`);
-      }, 2000);
-      
+      if (response.data.success) {
+        setSuccess('Student information updated successfully');
+        
+        // Navigate back to student details after short delay
+        setTimeout(() => {
+          navigate(`/admin/students/${id}`);
+        }, 2000);
+      } else {
+        throw new Error(response.data.message || 'Failed to update student');
+      }
     } catch (err) {
       console.error('Error updating student:', err);
       setError(err.response?.data?.message || 'Failed to update student information');
@@ -290,12 +291,12 @@ const EditStudent = () => {
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
             <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
-              {t('admin.students.studentInformation')}
+              Student Information
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  {t('admin.students.firstName')}
+                  First Name
                 </label>
                 <input
                   type="text"
@@ -309,7 +310,7 @@ const EditStudent = () => {
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  {t('admin.students.lastName')}
+                  Last Name
                 </label>
                 <input
                   type="text"
@@ -321,11 +322,9 @@ const EditStudent = () => {
                 />
               </div>
               
-              {/* No Sinhala Name field */}
-              
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  {t('admin.students.dateOfBirth')}
+                  Date of Birth
                 </label>
                 <input
                   type="date"
@@ -339,7 +338,7 @@ const EditStudent = () => {
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  {t('admin.students.gender')}
+                  Gender
                 </label>
                 <select
                   name="gender"
@@ -348,16 +347,16 @@ const EditStudent = () => {
                   required
                   className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                 >
-                  <option value="">{t('admin.students.selectGender')}</option>
-                  <option value="M">{t('admin.students.male')}</option>
-                  <option value="F">{t('admin.students.female')}</option>
-                  <option value="O">{t('admin.students.other')}</option>
+                  <option value="">Select Gender</option>
+                  <option value="M">Male</option>
+                  <option value="F">Female</option>
+                  <option value="O">Other</option>
                 </select>
               </div>
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  {t('admin.students.ageGroup')}
+                  Age Group
                 </label>
                 <select
                   name="ageGroup"
@@ -366,17 +365,17 @@ const EditStudent = () => {
                   required
                   className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                 >
-                  <option value="">{t('Select Age Group')}</option>
-                  <option value="3-6">{t('ageGroups.3-6')}</option>
-                  <option value="7-10">{t('ageGroups.7-10')}</option>
-                  <option value="11-13">{t('ageGroups.11-13')}</option>
-                  <option value="14+">{t('ageGroups.14+')}</option>
+                  <option value="">Select Age Group</option>
+                  <option value="3-6">3-6 years (Adhiṭṭhāna)</option>
+                  <option value="7-10">7-10 years (Mettā)</option>
+                  <option value="11-13">11-13 years (Khanti)</option>
+                  <option value="14+">14+ years (Nekkhamma)</option>
                 </select>
               </div>
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  {t('admin.students.classYear')}
+                  Class Year
                 </label>
                 <input
                   type="text"
@@ -391,7 +390,7 @@ const EditStudent = () => {
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  {t('admin.students.classCode')}
+                  Class
                 </label>
                 <select
                   name="classCode"
@@ -400,11 +399,11 @@ const EditStudent = () => {
                   required
                   className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                 >
-                  <option value="">{t('Select Class')}</option>
-                  <option value="ADH">{t('classes.ADH.name')} ({t('classes.ADH.nameSi')})</option>
-                  <option value="MET">{t('classes.MET.name')} ({t('classes.MET.nameSi')})</option>
-                  <option value="KHA">{t('classes.KHA.name')} ({t('classes.KHA.nameSi')})</option>
-                  <option value="NEK">{t('classes.NEK.name')} ({t('classes.NEK.nameSi')})</option>
+                  <option value="">Select Class</option>
+                  <option value="ADH">Adhiṭṭhāna (White)</option>
+                  <option value="MET">Mettā (Orange)</option>
+                  <option value="KHA">Khanti (Yellow)</option>
+                  <option value="NEK">Nekkhamma (Blue)</option>
                 </select>
               </div>
             </div>
@@ -412,7 +411,7 @@ const EditStudent = () => {
           
           <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
             <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
-              {t('admin.students.profilePhoto')}
+              Profile Image
             </h3>
             <div className="flex flex-col md:flex-row md:items-center gap-6">
               <div className="w-32 h-32 relative border rounded overflow-hidden flex items-center justify-center bg-gray-100 dark:bg-gray-700">
@@ -429,7 +428,6 @@ const EditStudent = () => {
                 )}
               </div>
               
-              {/* Upload Controls */}
               <div>
                 <input
                   type="file"
@@ -445,7 +443,7 @@ const EditStudent = () => {
                     onClick={() => fileInputRef.current.click()}
                     className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
                   >
-                    {imagePreview ? t('changeImage') : t('selectImage')}
+                    {imagePreview ? 'Change Image' : 'Upload Image'}
                   </button>
                   
                   {imagePreview && (
@@ -454,7 +452,7 @@ const EditStudent = () => {
                       onClick={handleRemoveImage}
                       className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
                     >
-                      {t('removeImage')}
+                      Remove Image
                     </button>
                   )}
                 </div>
@@ -468,12 +466,12 @@ const EditStudent = () => {
           
           <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
             <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
-              {t('admin.students.parentInformation')}
+              Parent Information
             </h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  {t('admin.students.parentName')}
+                  Parent Name
                 </label>
                 <input
                   type="text"
@@ -486,7 +484,7 @@ const EditStudent = () => {
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  {t('admin.students.parentPhone')}
+                  Phone Number
                 </label>
                 <input
                   type="text"
@@ -500,7 +498,7 @@ const EditStudent = () => {
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  {t('admin.students.parentEmail')}
+                  Email
                 </label>
                 <input
                   type="email"
@@ -513,7 +511,7 @@ const EditStudent = () => {
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  {t('admin.students.emergencyContact')}
+                  Emergency Contact
                 </label>
                 <input
                   type="text"
@@ -526,7 +524,7 @@ const EditStudent = () => {
               
               <div className="md:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  {t('admin.students.address')}
+                  Address
                 </label>
                 <textarea
                   name="parentInfo.address"
@@ -551,7 +549,7 @@ const EditStudent = () => {
               disabled={submitting}
               className="flex items-center px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors disabled:opacity-50"
             >
-              {submitting ? t('common.submitting') : (
+              {submitting ? 'Saving...' : (
                 <>
                   <FaSave className="mr-2" />
                   Save Changes

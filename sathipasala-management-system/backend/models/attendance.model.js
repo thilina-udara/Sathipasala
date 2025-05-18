@@ -19,6 +19,20 @@ const attendanceSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+  flowerOffering: {
+    brought: {
+      type: Boolean,
+      default: false
+    },
+    flowerType: {
+      type: String,
+      default: ''
+    },
+    notes: {
+      type: String,
+      default: ''
+    }
+  },
   markedBy: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
