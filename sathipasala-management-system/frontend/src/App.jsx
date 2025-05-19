@@ -4,6 +4,7 @@ import ProtectedRoute from './components/common/ProtectedRoute';
 
 // Pages
 import Login from './pages/Login';
+import HomePage from './pages/HomePage'; 
 import AdminLayout from './components/layout/AdminLayout';
 import AdminDashboard from './pages/admin/Dashboard';
 import StudentRegistration from './pages/admin/StudentRegistration';
@@ -14,7 +15,11 @@ import StudentAttendance from './pages/admin/StudentAttendance';
 import Attendance from './pages/admin/Attendance';
 import AttendanceAnalysis from './pages/admin/AttendanceAnalysis';
 import AttendanceReport from './pages/admin/AttendanceReport';
-import HomePage from './pages/HomePage'; // Import the HomePage component
+import BreathingBuddies from './pages/games/BreathingBuddies';
+import MindfulListening from './pages/games/MindfulListening';
+import KindnessGarden from './pages/games/KindnessGarden';
+import FivePrecepts from './pages/games/FivePrecepts';
+import SacredGrove from './pages/games/SacredGrove';
 import './i18n';
 
 function App() {
@@ -23,8 +28,15 @@ function App() {
       <AuthProvider>
         <Routes>
           {/* Public routes */}
-          <Route path="/" element={<HomePage />} /> {/* Show HomePage at root route */}
+          <Route path="/" element={<HomePage />} />
           <Route path="/login" element={<Login />} />
+          
+          {/* Games routes */}
+          <Route path="/games/breathing-buddies" element={<BreathingBuddies />} />
+          <Route path="/games/mindful-listening" element={<MindfulListening />} />
+          <Route path="/games/kindness-garden" element={<KindnessGarden />} />
+          <Route path="/games/five-precepts" element={<FivePrecepts />} />
+          <Route path="/games/sacred-grove" element={<SacredGrove />} />
           
           {/* Protected routes for Admin with Layout */}
           <Route element={<ProtectedRoute allowedRoles={['admin']} />}>

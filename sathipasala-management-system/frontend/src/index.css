@@ -2,3 +2,121 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Smooth scrolling */
+html {
+  scroll-behavior: smooth;
+}
+
+/* Remove cursor none styles */
+body {
+  cursor: auto !important; /* Override any other cursor setting */
+}
+
+a, 
+button, 
+input, 
+select, 
+textarea, 
+[role="button"], 
+.hover-effect {
+  cursor: pointer !important; /* Ensure these elements show the pointer cursor */
+}
+
+/* Simple fade-in animation */
+.animate-fade-in-up {
+  animation: fadeInUp 0.8s ease-out forwards;
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Hover scale effect */
+.hover\:scale-105:hover {
+  transform: scale(1.05);
+  transition: transform 0.3s ease;
+}
+
+/* Slow floating animation */
+.animate-float {
+  animation: floating 3s ease-in-out infinite;
+}
+
+@keyframes floating {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-10px); }
+  100% { transform: translateY(0px); }
+}
+
+/* Slow bounce for emoji */
+.animate-bounce-slow {
+  animation: bounce 3s ease-in-out infinite;
+}
+
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+
+/* Simple transition */
+.transition {
+  transition-property: all;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 300ms;
+}
+
+/* Breathing animations */
+@keyframes grow {
+  from { transform: scale(1); }
+  to { transform: scale(1.5); }
+}
+
+@keyframes shrink {
+  from { transform: scale(1.5); }
+  to { transform: scale(1); }
+}
+
+.animate-grow {
+  animation: grow 4s ease-in-out forwards;
+}
+
+.animate-shrink {
+  animation: shrink 4s ease-in-out forwards;
+}
+
+/* Add these at the end of your index.css file */
+
+/* Specific CSS for the Breathing Buddies game */
+@keyframes breathe-in {
+  from { transform: scale(1); }
+  to { transform: scale(1.5); }
+}
+
+@keyframes breathe-out {
+  from { transform: scale(1.5); }
+  to { transform: scale(1); }
+}
+
+@keyframes floating {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-15px); }
+}
+
+.animate-float {
+  animation: floating 5s ease-in-out infinite;
+}
+
+/* Make sure the duration matches the JS timeout values */
+.duration-[4000ms] {
+  transition-duration: 4000ms;
+}
+
+/* We're using a 10s total cycle: 4s inhale, 2s hold, 4s exhale */
