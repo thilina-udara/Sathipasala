@@ -14,6 +14,7 @@ import StudentAttendance from './pages/admin/StudentAttendance';
 import Attendance from './pages/admin/Attendance';
 import AttendanceAnalysis from './pages/admin/AttendanceAnalysis';
 import AttendanceReport from './pages/admin/AttendanceReport';
+import HomePage from './pages/HomePage'; // Import the HomePage component
 import './i18n';
 
 function App() {
@@ -22,6 +23,7 @@ function App() {
       <AuthProvider>
         <Routes>
           {/* Public routes */}
+          <Route path="/" element={<HomePage />} /> {/* Show HomePage at root route */}
           <Route path="/login" element={<Login />} />
           
           {/* Protected routes for Admin with Layout */}
@@ -44,9 +46,6 @@ function App() {
               <Route path="/admin/attendance/reports" element={<AttendanceReport />} />
             </Route>
           </Route>
-          
-          {/* Redirect root to login */}
-          <Route path="/" element={<Navigate to="/login" replace />} />
           
           {/* 404 Page - Catch all unmatched routes */}
           <Route path="*" element={
