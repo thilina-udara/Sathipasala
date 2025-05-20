@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import axios from 'axios';
-import { FaArrowLeft, FaPencilAlt, FaTrash, FaCalendarAlt } from 'react-icons/fa';
+import { FaArrowLeft, FaPencilAlt, FaCalendarAlt } from 'react-icons/fa';
 import ClassBadge from '../../components/common/ClassBadge';
 
 const StudentDetails = () => {
@@ -10,65 +10,53 @@ const StudentDetails = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Remove the first useEffect and keep only this one for fetching data
-  useEffect(() => {
-    const fetchStudentData = async () => {
-      try {
-        setLoading(true);
-        
-        // Check if student was just updated
-        const studentUpdated = localStorage.getItem('studentUpdated');
-        if (studentUpdated === 'true') {
-          console.log('Student was just updated, forcing fresh data fetch');
-        }
-        
-        // Use strong cache-busting with timestamp
-        const timestamp = new Date().getTime();
-        const response = await axios.get(`/api/students/${id}?_=${timestamp}`, {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`,
-            'Cache-Control': 'no-cache, no-store, must-revalidate',
-            'Pragma': 'no-cache',
-            'Expires': '0'
-          }
-        });
-        
-        if (!response.data.success) {
-          throw new Error(response.data.message || 'Failed to fetch student details');
-        }
-        
-        console.log('Fetched student details:', response.data.data);
-        setStudent(response.data.data);
-        
-        // Remove the flag after successful fetch
-        if (studentUpdated === 'true') {
-          localStorage.removeItem('studentUpdated');
-          console.log('Cleared student updated flag');
-        }
-        
-      } catch (error) {
-        console.error('Error fetching student details:', error);
-        setError(error.response?.data?.message || 'Failed to fetch student data');
-      } finally {
-        setLoading(false);
+  // Define fetchStudentData function to load student data
+  const fetchStudentData = async () => {
+    try {
+      setLoading(true);
+      
+      // Check if student was just updated
+      const studentUpdated = localStorage.getItem('studentUpdated');
+      if (studentUpdated === 'true') {
+        console.log('Student was just updated, forcing fresh data fetch');
       }
-    };
+      
+      // Use strong cache-busting with timestamp
+      const timestamp = new Date().getTime();
+      const response = await axios.get(`/api/students/${id}?_=${timestamp}`, {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('token')}`,
+          'Cache-Control': 'no-cache, no-store, must-revalidate',
+          'Pragma': 'no-cache',
+          'Expires': '0'
+        }
+      });
+      
+      if (!response.data.success) {
+        throw new Error(response.data.message || 'Failed to fetch student details');
+      }
+      
+      console.log('Fetched student details:', response.data.data);
+      setStudent(response.data.data);
+      
+      // Remove the flag after successful fetch
+      if (studentUpdated === 'true') {
+        localStorage.removeItem('studentUpdated');
+        console.log('Cleared student updated flag');
+      }
+      
+    } catch (error) {
+      console.error('Error fetching student details:', error);
+      setError(error.response?.data?.message || 'Failed to fetch student data');
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  // Fetch data only once when component mounts
+  useEffect(() => {
     fetchStudentData();
     
-    // Set up refresh interval for periodic data refresh
-    const refreshInterval = setInterval(() => {
-      console.log('Performing periodic refresh');
-      fetchStudentData();
-    }, 10000); // Refresh every 10 seconds
-    
-    return () => {
-      clearInterval(refreshInterval);
-    };
-  }, [id]);
-
-  // Add this to always display live data on the details page
-  useEffect(() => {
     return () => {
       // Clear browser cache when leaving component
       if (window.caches) {
@@ -80,7 +68,7 @@ const StudentDetails = () => {
         });
       }
     };
-  }, []);
+  }, [id]);
 
   if (loading) {
     return (
@@ -156,6 +144,7 @@ const StudentDetails = () => {
               Student Details
             </h2>
           </div>
+          
           <div className="flex space-x-2">
             <Link
               to={`/admin/students/${id}/edit`}

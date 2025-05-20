@@ -107,6 +107,12 @@ exports.getStudent = asyncHandler(async (req, res, next) => {
  * @access  Private (Admin)
  */
 exports.updateStudent = asyncHandler(async (req, res, next) => {
+  console.log('Update student called for ID:', req.params.id);
+  console.log('File in request:', req.file ? 'YES' : 'NO');
+  if (req.file) {
+    console.log('File details:', req.file.filename, req.file.mimetype, req.file.size);
+  }
+  
   let student = await Student.findById(req.params.id);
 
   if (!student) {
@@ -115,38 +121,73 @@ exports.updateStudent = asyncHandler(async (req, res, next) => {
 
   // Handle file upload if there's a profile image
   if (req.file) {
-    // Delete old image if exists
-    if (student.profileImage && student.profileImage.filename) {
-      const oldImagePath = path.join(__dirname, '../public/uploads', student.profileImage.filename);
-      if (fs.existsSync(oldImagePath)) {
-        fs.unlinkSync(oldImagePath);
-      }
-    }
+    console.log('Processing new image upload');
     
-    // Set new image
-    req.body.profileImage = {
-      url: `/uploads/${req.file.filename}`,
-      filename: req.file.filename
-    };
+    // Delete old image if exists
+    try {
+      if (student.profileImage && student.profileImage.filename) {
+        const oldImagePath = path.join(__dirname, '../public/uploads', student.profileImage.filename);
+        console.log('Looking for old image at:', oldImagePath);
+        
+        if (fs.existsSync(oldImagePath)) {
+          console.log('Deleting old image file');
+          fs.unlinkSync(oldImagePath);
+        } else {
+          console.log('Old image file not found on disk');
+        }
+      }
+      
+      // Set new image - use absolute URL for stability
+      const filename = req.file.filename;
+      req.body.profileImage = {
+        url: `/uploads/${filename}`,
+        filename: filename
+      };
+      
+      console.log('New profile image data:', req.body.profileImage);
+    } catch (err) {
+      console.error('Error processing file:', err);
+      // Continue with the update even if there was an error with the old file
+    }
   }
 
   // Handle image removal if requested
   if (req.body.removeProfileImage === 'true' && !req.file) {
-    if (student.profileImage && student.profileImage.filename) {
-      const oldImagePath = path.join(__dirname, '../public/uploads', student.profileImage.filename);
-      if (fs.existsSync(oldImagePath)) {
-        fs.unlinkSync(oldImagePath);
+    console.log('Image removal requested');
+    try {
+      if (student.profileImage && student.profileImage.filename) {
+        const oldImagePath = path.join(__dirname, '../public/uploads', student.profileImage.filename);
+        if (fs.existsSync(oldImagePath)) {
+          fs.unlinkSync(oldImagePath);
+          console.log('Removed old image file');
+        }
       }
+      req.body.profileImage = null;
+      console.log('Set profileImage to null in database');
+    } catch (err) {
+      console.error('Error removing image:', err);
     }
-    req.body.profileImage = null;
   }
 
-  // Update student
+  // Update student with updated fields only
+  console.log('Fields being updated:', Object.keys(req.body));
+  
+  // Make sure profileImage is properly handled (MongoDB can be picky about null fields)
+  if (req.body.profileImage === null) {
+    // Use $unset to completely remove the field
+    await Student.updateOne(
+      { _id: req.params.id }, 
+      { $unset: { profileImage: "" } }
+    );
+    delete req.body.profileImage; // Don't include it in the main update
+  }
+
   student = await Student.findByIdAndUpdate(req.params.id, req.body, {
     new: true,
     runValidators: true
   });
 
+  console.log('Student updated successfully');
   res.status(200).json({
     success: true,
     data: student

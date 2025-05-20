@@ -13,13 +13,37 @@ const app = express();
 
 // Middleware
 app.use(cors());
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 
-// Ensure uploads directory exists
+// Create uploads directory with proper permissions
 const uploadsDir = path.join(__dirname, 'public/uploads');
+console.log(`Setting up uploads directory at: ${uploadsDir}`);
+
+// Create directory if it doesn't exist
 if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
+  try {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+    console.log('Successfully created uploads directory');
+    // Set permissions (not needed for Windows, but useful for Linux/Mac)
+    try {
+      fs.chmodSync(uploadsDir, 0o777);
+    } catch (err) {
+      console.log('Note: Could not set directory permissions (normal on Windows)');
+    }
+  } catch (err) {
+    console.error('Failed to create uploads directory:', err);
+  }
+}
+
+// Test write access to the uploads directory
+try {
+  const testFile = path.join(uploadsDir, 'test-write.txt');
+  fs.writeFileSync(testFile, 'Testing write access');
+  fs.unlinkSync(testFile);
+  console.log('✓ Upload directory is writable');
+} catch (err) {
+  console.error('❌ Upload directory is NOT writable:', err.message);
 }
 
 // Define routes
@@ -36,8 +60,9 @@ app.get('/', (req, res) => {
   });
 });
 
-// Serve static files
+// Explicitly serve static files from uploads directory
 app.use('/uploads', express.static(path.join(__dirname, 'public/uploads')));
+console.log(`Serving static files from: ${path.join(__dirname, 'public/uploads')}`);
 
 // Error handling middleware
 app.use((err, req, res, next) => {

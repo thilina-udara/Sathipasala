@@ -6,18 +6,21 @@ const fs = require('fs');
 const uploadDir = path.join(__dirname, '../public/uploads');
 if (!fs.existsSync(uploadDir)) {
   fs.mkdirSync(uploadDir, { recursive: true });
+  console.log('Created uploads directory from middleware');
 }
 
-// Configure storage for file uploads
+// Configure storage with better naming
 const storage = multer.diskStorage({
   destination: function(req, file, cb) {
     cb(null, uploadDir);
   },
   filename: function(req, file, cb) {
-    // Create a unique filename with original extension
+    // Create a more reliable unique filename
     const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
-    const ext = path.extname(file.originalname);
-    cb(null, 'profile-' + uniqueSuffix + ext);
+    const ext = path.extname(file.originalname) || '.jpg';
+    const filename = `student-${uniqueSuffix}${ext}`;
+    console.log(`Generated filename for upload: ${filename}`);
+    cb(null, filename);
   }
 });
 
@@ -28,15 +31,16 @@ const fileFilter = (req, file, cb) => {
   if (allowedTypes.includes(file.mimetype)) {
     cb(null, true);
   } else {
-    cb(new Error('Invalid file type. Only JPEG, PNG and GIF images are allowed.'), false);
+    console.log(`Rejected file of type: ${file.mimetype}`);
+    cb(new Error('Only JPEG, PNG and GIF images are allowed.'), false);
   }
 };
 
-// Configure upload options
+// Initialize with better error handling
 const upload = multer({
   storage: storage,
   limits: {
-    fileSize: 2 * 1024 * 1024 // 2MB
+    fileSize: 5 * 1024 * 1024 // 5MB limit
   },
   fileFilter: fileFilter
 });

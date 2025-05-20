@@ -177,10 +177,11 @@ const EditStudent = () => {
     }
   };
   
-  // Handle image upload
+  // Handle image upload with more robust error handling
   const handleImageChange = (e) => {
     if (e.target.files && e.target.files[0]) {
       const file = e.target.files[0];
+      console.log('Selected image file:', file.name, file.type, file.size);
       
       // Validate file type
       const allowedTypes = ['image/jpeg', 'image/png', 'image/gif'];
@@ -189,18 +190,24 @@ const EditStudent = () => {
         return;
       }
       
-      // Validate file size (max 2MB)
-      if (file.size > 2 * 1024 * 1024) {
-        setError('Image is too large. Maximum size is 2MB.');
+      // Validate file size (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        setError('Image is too large. Maximum size is 5MB.');
         return;
       }
       
       setProfileImage(file);
+      setError(null); // Clear any previous errors
       
       // Create preview
       const reader = new FileReader();
       reader.onloadend = () => {
         setImagePreview(reader.result);
+        console.log('Image preview created');
+      };
+      reader.onerror = () => {
+        console.error('Error reading file');
+        setError('Error processing image. Please try another file.');
       };
       reader.readAsDataURL(file);
     }
@@ -216,7 +223,7 @@ const EditStudent = () => {
     }
   };
   
-  // Form submission handler
+  // Form submission handler with improved file handling
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
@@ -249,33 +256,41 @@ const EditStudent = () => {
         submitData.append('emergencyContact', formData.emergencyContact);
       }
       
-      // Profile image
+      // Profile image handling - add extra logging
       if (profileImage) {
-        submitData.append('profileImage', profileImage);
+        console.log('Adding image to form data:', profileImage.name, profileImage.type);
+        submitData.append('profileImage', profileImage, profileImage.name);
+      } else {
+        console.log('No new profile image to upload');
       }
       
-      // Image removal
-      if (existingImage && !imagePreview) {
-        submitData.append('removeProfileImage', 'true');
-      }
-      
-      console.log('Submitting updated student data with values:');
-      console.log(`- Full name: ${fullName}`);
-      console.log(`- Date of Birth: ${formData.dateOfBirth}`);
-      console.log(`- Gender: ${formData.gender}`);
-      console.log(`- Age Group: ${formData.ageGroup}`);
-      console.log(`- Class: ${formData.classCode} (${formData.classYear})`);
-      console.log(`- Parent: ${formData.parentInfo.name}`);
-      console.log(`- Phone: ${formData.parentInfo.phone}`);
-      console.log(`- Image: ${profileImage ? 'New image uploaded' : 'No new image'}`);
-      
-      // Make the API request
-      const response = await axios.put(`/api/students/${id}`, submitData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+      // Debug form data
+      console.log('FormData entries:');
+      for (let [key, value] of submitData.entries()) {
+        if (key !== 'profileImage') {
+          console.log(`- ${key}: ${value}`);
+        } else {
+          console.log(`- ${key}: [File object]`);
         }
-      });
+      }
+      
+      // Make the API request with better error handling
+      console.log('Submitting form to:', `/api/students/${id}`);
+      const response = await axios.put(
+        `/api/students/${id}`,
+        submitData,
+        {
+          headers: {
+            'Content-Type': 'multipart/form-data',
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            // Remove extra headers that might interfere
+          },
+          onUploadProgress: (progressEvent) => {
+            const percentCompleted = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+            console.log(`Upload progress: ${percentCompleted}%`);
+          }
+        }
+      );
       
       console.log('Update response:', response.data);
       
@@ -294,8 +309,23 @@ const EditStudent = () => {
       }
       
     } catch (err) {
-      console.error('Error updating student:', err);
-      setError(err.response?.data?.message || 'Failed to update student. Please check your connection and try again.');
+      console.error('Error object:', err);
+      let errorMessage = 'Failed to update student. Please check your connection and try again.';
+      
+      // Improved error logging
+      if (err.response) {
+        console.error('Server error response:', err.response.status);
+        console.error('Error data:', err.response.data);
+        errorMessage = err.response.data?.message || `Server error: ${err.response.status}`;
+      } else if (err.request) {
+        console.error('No response received');
+        errorMessage = 'No response received from server. Server might be down.';
+      } else {
+        console.error('Error during request setup:', err.message);
+        errorMessage = err.message;
+      }
+      
+      setError(errorMessage);
     } finally {
       setSubmitting(false);
     }
@@ -506,7 +536,7 @@ const EditStudent = () => {
                 />
               </div>
               <p className="text-xs text-gray-500 mt-1">
-                Maximum 2MB, JPG or PNG format only
+                Maximum 5MB, JPG or PNG format only
               </p>
             </div>
           </div>
