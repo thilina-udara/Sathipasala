@@ -10,16 +10,26 @@ const StudentDetails = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Replace the useEffect for fetching student data
+  // Remove the first useEffect and keep only this one for fetching data
   useEffect(() => {
-    const fetchStudentDetails = async () => {
+    const fetchStudentData = async () => {
       try {
         setLoading(true);
-        setError(null);
         
-        const response = await axios.get(`/api/students/${id}`, {
+        // Check if student was just updated
+        const studentUpdated = localStorage.getItem('studentUpdated');
+        if (studentUpdated === 'true') {
+          console.log('Student was just updated, forcing fresh data fetch');
+        }
+        
+        // Use strong cache-busting with timestamp
+        const timestamp = new Date().getTime();
+        const response = await axios.get(`/api/students/${id}?_=${timestamp}`, {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem('token')}`
+            'Authorization': `Bearer ${localStorage.getItem('token')}`,
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
           }
         });
         
@@ -27,19 +37,50 @@ const StudentDetails = () => {
           throw new Error(response.data.message || 'Failed to fetch student details');
         }
         
+        console.log('Fetched student details:', response.data.data);
         setStudent(response.data.data);
-      } catch (err) {
-        console.error('Error fetching student details:', err);
-        setError(err.response?.data?.message || 'Failed to fetch student details');
+        
+        // Remove the flag after successful fetch
+        if (studentUpdated === 'true') {
+          localStorage.removeItem('studentUpdated');
+          console.log('Cleared student updated flag');
+        }
+        
+      } catch (error) {
+        console.error('Error fetching student details:', error);
+        setError(error.response?.data?.message || 'Failed to fetch student data');
       } finally {
         setLoading(false);
       }
     };
 
-    if (id) {
-      fetchStudentDetails();
-    }
+    fetchStudentData();
+    
+    // Set up refresh interval for periodic data refresh
+    const refreshInterval = setInterval(() => {
+      console.log('Performing periodic refresh');
+      fetchStudentData();
+    }, 10000); // Refresh every 10 seconds
+    
+    return () => {
+      clearInterval(refreshInterval);
+    };
   }, [id]);
+
+  // Add this to always display live data on the details page
+  useEffect(() => {
+    return () => {
+      // Clear browser cache when leaving component
+      if (window.caches) {
+        // Attempt to clear application cache
+        caches.keys().then(names => {
+          names.forEach(name => {
+            caches.delete(name);
+          });
+        });
+      }
+    };
+  }, []);
 
   if (loading) {
     return (

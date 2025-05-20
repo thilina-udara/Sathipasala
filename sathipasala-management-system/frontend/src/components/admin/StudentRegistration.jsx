@@ -133,6 +133,8 @@ const StudentRegistration = () => {
     setMessage({ type: '', text: '' });
 
     try {
+      console.log('Submitting form with gender:', formData.gender); // Debug log
+    
       // Create form data object for multipart/form-data submission
       const submitData = new FormData();
       
@@ -140,7 +142,7 @@ const StudentRegistration = () => {
       submitData.append('name[en]', `${formData.firstName} ${formData.lastName}`);
       submitData.append('name[si]', formData.sinhalaName || `${formData.firstName} ${formData.lastName}`);
       submitData.append('dateOfBirth', formData.dateOfBirth);
-      submitData.append('gender', formData.gender);
+      submitData.append('gender', formData.gender); // Now using "M" or "F"
       submitData.append('ageGroup', formData.ageGroup);
       submitData.append('classYear', formData.classYear);
       submitData.append('classCode', formData.classCode);
@@ -162,6 +164,8 @@ const StudentRegistration = () => {
         submitData.append('profileImage', profileImage);
       }
       
+      console.log('Submitting new student registration');
+      
       // Send data to API
       const response = await axios.post('/api/students', submitData, {
         headers: {
@@ -172,10 +176,10 @@ const StudentRegistration = () => {
 
       setMessage({
         type: 'success',
-        text: `${t('admin.students.registrationSuccess')}: ${response.data.data?.studentId || 'N/A'}`
+        text: `Student registered successfully. ID: ${response.data.data?.studentId || 'N/A'}`
       });
       
-      // Reset form
+      // Reset form after successful submission
       setFormData({
         firstName: '',
         lastName: '',
@@ -203,7 +207,7 @@ const StudentRegistration = () => {
       console.error("Registration error:", error);
       setMessage({
         type: 'error',
-        text: error.response?.data?.message || t('admin.students.registrationError')
+        text: error.response?.data?.message || 'Failed to register student'
       });
     } finally {
       setLoading(false);
@@ -288,9 +292,8 @@ const StudentRegistration = () => {
                 className="w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:border-blue-300 dark:bg-gray-700 dark:text-white dark:border-gray-600"
               >
                 <option value="">-- {t('admin.students.selectGender')} --</option>
-                <option value="male">{t('admin.students.male')}</option>
-                <option value="female">{t('admin.students.female')}</option>
-
+                <option value="M">{t('admin.students.male')}</option>
+                <option value="F">{t('admin.students.female')}</option>
               </select>
             </div>
             

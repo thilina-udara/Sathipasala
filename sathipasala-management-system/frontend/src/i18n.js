@@ -54,7 +54,11 @@ const resources = {
           emergencyContact: 'Emergency Contact',
           emergencyContactPlaceholder: 'Alternative contact number',
           profilePhoto: 'Profile Photo',
-          uploadProfileImage: 'Upload student photo'
+          uploadProfileImage: 'Upload student photo',
+          genderValues: {
+            M: 'Male',
+            F: 'Female'
+          }
         },
         filters: {
           all: 'All'

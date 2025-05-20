@@ -19,7 +19,7 @@ router
 router
   .route('/:id')
   .get(protect, getStudent)
-  .put(protect, authorize('admin'), updateStudent)
+  .put(protect, authorize('admin'), upload.single('profileImage'), updateStudent) // Add upload middleware here
   .delete(protect, authorize('admin'), deleteStudent);
 
 module.exports = router;

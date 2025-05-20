@@ -14,7 +14,10 @@ const EditStudent = () => {
   const [success, setSuccess] = useState(null);
   const fileInputRef = useRef(null);
   
-  // Student form data - no sinhalaName field
+  // Original student data from API
+  const [originalStudent, setOriginalStudent] = useState(null);
+  
+  // Form data
   const [formData, setFormData] = useState({
     firstName: '',
     lastName: '',
@@ -32,7 +35,7 @@ const EditStudent = () => {
     emergencyContact: ''
   });
   
-  // For image handling
+  // Image handling
   const [profileImage, setProfileImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
   const [existingImage, setExistingImage] = useState(null);
@@ -42,24 +45,46 @@ const EditStudent = () => {
     const fetchStudentData = async () => {
       try {
         setLoading(true);
-        const response = await axios.get(`/api/students/${id}`, {
+        setError(null);
+        
+        // Use timestamp for cache busting
+        const timestamp = new Date().getTime();
+        const response = await axios.get(`/api/students/${id}?_t=${timestamp}`, {
           headers: {
-            Authorization: `Bearer ${localStorage.getItem('token')}`
+            Authorization: `Bearer ${localStorage.getItem('token')}`,
+            'Cache-Control': 'no-cache, no-store, must-revalidate',
+            'Pragma': 'no-cache',
+            'Expires': '0'
           }
         });
         
+        if (!response.data.success) {
+          throw new Error(response.data.message || 'Failed to fetch student data');
+        }
+        
         const student = response.data.data;
+        setOriginalStudent(student);
+        
+        console.log("Received student data from backend:", student);
         
         // Parse student name into first and last name
-        const nameParts = student.name.en.split(' ');
-        const lastName = nameParts.pop() || '';
-        const firstName = nameParts.join(' ');
+        let firstName = '', lastName = '';
+        if (student.name && student.name.en) {
+          const nameParts = student.name.en.trim().split(' ');
+          if (nameParts.length > 1) {
+            lastName = nameParts.pop();
+            firstName = nameParts.join(' ');
+          } else {
+            firstName = nameParts[0] || '';
+          }
+        }
         
+        // Set form data from student object
         setFormData({
           firstName,
           lastName,
-          dateOfBirth: new Date(student.dateOfBirth).toISOString().split('T')[0],
-          gender: student.gender || '',
+          dateOfBirth: student.dateOfBirth ? new Date(student.dateOfBirth).toISOString().split('T')[0] : '',
+          gender: student.gender || '', // Store exactly as is from the backend
           ageGroup: student.ageGroup || '',
           classYear: student.classYear || '',
           classCode: student.classCode || '',
@@ -70,6 +95,12 @@ const EditStudent = () => {
             address: student.parentInfo?.address || ''
           },
           emergencyContact: student.emergencyContact || ''
+        });
+        
+        console.log("Form data initialized:", {
+          name: `${firstName} ${lastName}`,
+          gender: student.gender,
+          initialFormGender: student.gender || ''
         });
         
         // Set existing profile image if available
@@ -108,15 +139,17 @@ const EditStudent = () => {
     let ageGroup = '';
     if (age >= 0 && age <= 6) {
       ageGroup = '3-6';
+      setFormData(prev => ({...prev, ageGroup, classCode: 'ADH'})); // Adhiṭṭhāna
     } else if (age >= 7 && age <= 10) {
       ageGroup = '7-10';
+      setFormData(prev => ({...prev, ageGroup, classCode: 'MET'})); // Mettā
     } else if (age >= 11 && age <= 13) {
       ageGroup = '11-13';
+      setFormData(prev => ({...prev, ageGroup, classCode: 'KHA'})); // Khanti
     } else if (age >= 14) {
       ageGroup = '14+';
+      setFormData(prev => ({...prev, ageGroup, classCode: 'NEK'})); // Nekkhamma
     }
-    
-    setFormData(prev => ({...prev, ageGroup}));
   };
   
   // Handle form input changes
@@ -191,41 +224,52 @@ const EditStudent = () => {
     setSuccess(null);
     
     try {
-      // Create FormData object for multipart/form-data submission
+      // Create FormData object
       const submitData = new FormData();
       
-      // Add all form fields
-      submitData.append('name[en]', `${formData.firstName} ${formData.lastName}`.trim());
-      submitData.append('name[si]', `${formData.firstName} ${formData.lastName}`.trim());
+      // Basic student information
+      const fullName = `${formData.firstName} ${formData.lastName}`.trim();
+      submitData.append('name[en]', fullName);
+      submitData.append('name[si]', formData.firstName);
       submitData.append('dateOfBirth', formData.dateOfBirth);
-      submitData.append('gender', formData.gender);
+      submitData.append('gender', formData.gender); // This should now be "M" or "F"
       submitData.append('ageGroup', formData.ageGroup);
       submitData.append('classYear', formData.classYear);
       submitData.append('classCode', formData.classCode);
       
-      // Parent info
+      // Parent information
       submitData.append('parentInfo[name][en]', formData.parentInfo.name);
       submitData.append('parentInfo[name][si]', formData.parentInfo.name);
       submitData.append('parentInfo[phone]', formData.parentInfo.phone);
-      submitData.append('parentInfo[email]', formData.parentInfo.email);
-      submitData.append('parentInfo[address]', formData.parentInfo.address);
+      submitData.append('parentInfo[email]', formData.parentInfo.email || '');
+      submitData.append('parentInfo[address]', formData.parentInfo.address || '');
       
       // Emergency contact
       if (formData.emergencyContact) {
         submitData.append('emergencyContact', formData.emergencyContact);
       }
       
-      // Add profile image if changed
+      // Profile image
       if (profileImage) {
         submitData.append('profileImage', profileImage);
       }
       
-      // Flag to indicate if image was removed
+      // Image removal
       if (existingImage && !imagePreview) {
         submitData.append('removeProfileImage', 'true');
       }
       
-      // Send update request
+      console.log('Submitting updated student data with values:');
+      console.log(`- Full name: ${fullName}`);
+      console.log(`- Date of Birth: ${formData.dateOfBirth}`);
+      console.log(`- Gender: ${formData.gender}`);
+      console.log(`- Age Group: ${formData.ageGroup}`);
+      console.log(`- Class: ${formData.classCode} (${formData.classYear})`);
+      console.log(`- Parent: ${formData.parentInfo.name}`);
+      console.log(`- Phone: ${formData.parentInfo.phone}`);
+      console.log(`- Image: ${profileImage ? 'New image uploaded' : 'No new image'}`);
+      
+      // Make the API request
       const response = await axios.put(`/api/students/${id}`, submitData, {
         headers: {
           'Content-Type': 'multipart/form-data',
@@ -233,28 +277,36 @@ const EditStudent = () => {
         }
       });
       
+      console.log('Update response:', response.data);
+      
       if (response.data.success) {
         setSuccess('Student information updated successfully');
         
-        // Navigate back to student details after short delay
+        // Set a flag in localStorage to indicate the student was updated
+        localStorage.setItem('studentUpdated', 'true');
+        
+        // Force a complete page reload after successful edit
         setTimeout(() => {
-          navigate(`/admin/students/${id}`);
-        }, 2000);
+          window.location.href = `/admin/students/${id}`;
+        }, 1000);
       } else {
-        throw new Error(response.data.message || 'Failed to update student');
+        throw new Error(response.data.message || 'Update failed');
       }
+      
     } catch (err) {
       console.error('Error updating student:', err);
-      setError(err.response?.data?.message || 'Failed to update student information');
+      setError(err.response?.data?.message || 'Failed to update student. Please check your connection and try again.');
     } finally {
       setSubmitting(false);
     }
   };
-  
+
+  // UI rendering
   if (loading) {
     return (
       <div className="flex justify-center items-center h-64">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+        <p className="ml-3 text-gray-600 dark:text-gray-300">Loading student data...</p>
       </div>
     );
   }
@@ -287,13 +339,14 @@ const EditStudent = () => {
             {success}
           </div>
         )}
-
+        
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
             <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
               Student Information
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   First Name
@@ -321,39 +374,41 @@ const EditStudent = () => {
                   className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                 />
               </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Date of Birth
-                </label>
-                <input
-                  type="date"
-                  name="dateOfBirth"
-                  value={formData.dateOfBirth}
-                  onChange={handleChange}
-                  required
-                  className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Gender
-                </label>
-                <select
-                  name="gender"
-                  value={formData.gender}
-                  onChange={handleChange}
-                  required
-                  className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                >
-                  <option value="">Select Gender</option>
-                  <option value="M">Male</option>
-                  <option value="F">Female</option>
-                  <option value="O">Other</option>
-                </select>
-              </div>
-              
+            </div>
+            
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Date of Birth
+              </label>
+              <input
+                type="date"
+                name="dateOfBirth"
+                value={formData.dateOfBirth}
+                onChange={handleChange}
+                required
+                className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+              />
+            </div>
+            
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Gender
+              </label>
+              <select
+                name="gender"
+                value={formData.gender}
+                onChange={handleChange}
+                required
+                className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+              >
+                <option value="">Select Gender</option>
+                <option value="M">Male</option>
+                <option value="F">Female</option>
+              </select>
+              <p className="mt-1 text-xs text-gray-500">Using M/F format for database compatibility</p>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Age Group
@@ -371,26 +426,14 @@ const EditStudent = () => {
                   <option value="11-13">11-13 years (Khanti)</option>
                   <option value="14+">14+ years (Nekkhamma)</option>
                 </select>
+                <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+                  Auto-assigned based on date of birth
+                </p>
               </div>
               
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Class Year
-                </label>
-                <input
-                  type="text"
-                  name="classYear"
-                  value={formData.classYear}
-                  onChange={handleChange}
-                  required
-                  placeholder="E.g., 2023"
-                  className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Class
+                  Class Code
                 </label>
                 <select
                   name="classCode"
@@ -400,75 +443,81 @@ const EditStudent = () => {
                   className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                 >
                   <option value="">Select Class</option>
-                  <option value="ADH">Adhiṭṭhāna (White)</option>
-                  <option value="MET">Mettā (Orange)</option>
-                  <option value="KHA">Khanti (Yellow)</option>
-                  <option value="NEK">Nekkhamma (Blue)</option>
+                  <option value="ADH">Adhiṭṭhāna (අධිඨාන) - White</option>
+                  <option value="MET">Mettā (මෙත්තා) - Orange</option>
+                  <option value="KHA">Khanti (ඛන්ති) - Yellow</option>
+                  <option value="NEK">Nekkhamma (නෙක්කම්ම) - Blue</option>
                 </select>
               </div>
             </div>
-          </div>
-          
-          <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
-              Profile Image
-            </h3>
-            <div className="flex flex-col md:flex-row md:items-center gap-6">
-              <div className="w-32 h-32 relative border rounded overflow-hidden flex items-center justify-center bg-gray-100 dark:bg-gray-700">
+            
+            <div className="mb-4">
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Class Year
+              </label>
+              <input
+                type="text"
+                name="classYear"
+                value={formData.classYear}
+                onChange={handleChange}
+                required
+                className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+              />
+            </div>
+            
+            {/* Profile Photo */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                Profile Photo
+              </label>
+              <div className="mt-1 flex items-center space-x-4">
                 {imagePreview ? (
-                  <img 
-                    src={imagePreview} 
-                    alt="Student Preview" 
-                    className="max-w-full max-h-full object-cover"
-                  />
-                ) : (
-                  <div className="text-gray-400 text-6xl">
-                    {formData.firstName.charAt(0)}
-                  </div>
-                )}
-              </div>
-              
-              <div>
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={handleImageChange}
-                  accept="image/png, image/jpeg, image/gif"
-                  className="hidden"
-                />
-                
-                <div className="flex flex-col space-y-2">
-                  <button
-                    type="button"
-                    onClick={() => fileInputRef.current.click()}
-                    className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition-colors"
-                  >
-                    {imagePreview ? 'Change Image' : 'Upload Image'}
-                  </button>
-                  
-                  {imagePreview && (
+                  <div className="relative">
+                    <img 
+                      src={imagePreview} 
+                      alt="Profile preview" 
+                      className="h-24 w-24 rounded-full object-cover border-2 border-gray-200 dark:border-gray-700"
+                    />
                     <button
                       type="button"
                       onClick={handleRemoveImage}
-                      className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition-colors"
+                      className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 w-6 h-6 flex items-center justify-center"
                     >
-                      Remove Image
+                      ×
                     </button>
-                  )}
-                </div>
-                
-                <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                  JPG, PNG or GIF. Max 2MB.
-                </p>
+                  </div>
+                ) : (
+                  <div className="h-24 w-24 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
+                    <span className="text-gray-500 dark:text-gray-400 text-3xl">👤</span>
+                  </div>
+                )}
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  accept="image/*"
+                  onChange={handleImageChange}
+                  className="block w-full text-sm text-gray-500 dark:text-gray-400
+                    file:mr-4 file:py-2 file:px-4
+                    file:rounded file:border-0
+                    file:text-sm file:font-semibold
+                    file:bg-blue-50 file:text-blue-700
+                    dark:file:bg-blue-900 dark:file:text-blue-200
+                    hover:file:bg-blue-100 dark:hover:file:bg-blue-800"
+                />
               </div>
+              <p className="text-xs text-gray-500 mt-1">
+                Maximum 2MB, JPG or PNG format only
+              </p>
             </div>
           </div>
-          
+
+          {/* Parent Information */}
           <div className="bg-white dark:bg-gray-800 shadow rounded-lg p-6">
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+            <h3 className="text-lg font-medium text-gray-900 dark:text-white border-b border-gray-200 dark:border-gray-700 pb-2 mb-4">
               Parent Information
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            
+            <div className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Parent Name
@@ -478,6 +527,7 @@ const EditStudent = () => {
                   name="parentInfo.name"
                   value={formData.parentInfo.name}
                   onChange={handleChange}
+                  required
                   className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                 />
               </div>
@@ -487,7 +537,7 @@ const EditStudent = () => {
                   Phone Number
                 </label>
                 <input
-                  type="text"
+                  type="tel"
                   name="parentInfo.phone"
                   value={formData.parentInfo.phone}
                   onChange={handleChange}
@@ -514,15 +564,16 @@ const EditStudent = () => {
                   Emergency Contact
                 </label>
                 <input
-                  type="text"
+                  type="tel"
                   name="emergencyContact"
                   value={formData.emergencyContact}
                   onChange={handleChange}
                   className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
+                  placeholder="Alternative emergency contact number"
                 />
               </div>
               
-              <div className="md:col-span-2">
+              <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   Address
                 </label>
@@ -530,7 +581,8 @@ const EditStudent = () => {
                   name="parentInfo.address"
                   value={formData.parentInfo.address}
                   onChange={handleChange}
-                  rows={3}
+                  rows="3"
+                  required
                   className="block w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm placeholder-gray-400 dark:bg-gray-700 dark:text-white focus:outline-none focus:ring-blue-500 focus:border-blue-500 sm:text-sm"
                 ></textarea>
               </div>
