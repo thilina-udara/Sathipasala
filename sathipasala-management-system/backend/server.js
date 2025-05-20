@@ -46,11 +46,45 @@ try {
   console.error('❌ Upload directory is NOT writable:', err.message);
 }
 
-// Define routes
-app.use('/api/auth', require('./routes/auth.routes'));
-app.use('/api/students', require('./routes/student.routes'));
-// app.use('/api/attendance', require('./routes/attendance.routes'));
-// app.use('/api/exams', require('./routes/exam.routes'));
+// Import routes
+const authRoutes = require('./routes/auth.routes');
+const studentRoutes = require('./routes/student.routes');
+const attendanceRoutes = require('./routes/attendance.routes');
+const holidaysRoutes = require('./routes/holidays.routes');
+
+// Import the attendance setup function
+const { setupAttendanceCollection } = require('./models/Attendance');
+
+// Import database repair utility
+const { repairAttendanceCollection } = require('./utils/dbRepair');
+
+// Connect to MongoDB and set up collections
+mongoose.connect(process.env.MONGO_URI)
+  .then(async () => {
+    console.log('Connected to MongoDB');
+    
+    // Run database repair on startup
+    console.log('Repairing database collections...');
+    await repairAttendanceCollection();
+    console.log('Database repair completed');
+    
+    // Continue with server startup
+    const PORT = process.env.PORT || 5000;
+    app.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
+    });
+  })
+  .catch(err => {
+    console.error('MongoDB connection error:', err);
+    process.exit(1);
+  });
+
+// Mount routes
+console.log('Registering API routes...');
+app.use('/api/auth', authRoutes);
+app.use('/api/students', studentRoutes);
+app.use('/api/attendance', attendanceRoutes);
+app.use('/api/holidays', holidaysRoutes);
 
 // Basic route for testing
 app.get('/', (req, res) => {
@@ -72,21 +106,5 @@ app.use((err, req, res, next) => {
     error: process.env.NODE_ENV === 'development' ? err.message : {}
   });
 });
-
-// Set port and connect to database
-const PORT = process.env.PORT || 5000;
-const MONGO_URI = process.env.MONGO_URI;
-
-mongoose.connect(MONGO_URI)
-  .then(() => {
-    console.log('Connected to MongoDB');
-    app.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
-    });
-  })
-  .catch(err => {
-    console.error('MongoDB connection error:', err);
-    process.exit(1);
-  });
 
 module.exports = app;

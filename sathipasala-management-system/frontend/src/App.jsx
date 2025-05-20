@@ -20,6 +20,7 @@ import MindfulListening from './pages/games/MindfulListening';
 import KindnessGarden from './pages/games/KindnessGarden';
 import FivePrecepts from './pages/games/FivePrecepts';
 import SacredGrove from './pages/games/SacredGrove';
+import ClassGroups from './pages/admin/ClassGroups';
 import './i18n';
 
 function App() {
@@ -51,6 +52,10 @@ function App() {
               <Route path="/admin/students/:id" element={<StudentDetails />} />
               <Route path="/admin/students/:id/edit" element={<EditStudent />} />
               <Route path="/admin/students/:id/attendance" element={<StudentAttendance />} />
+              <Route path="/admin/students/classes" element={<ClassGroups />} />
+              
+              {/* Class Management Routes */}
+              <Route path="/admin/classes" element={<ClassGroups />} />
               
               {/* Attendance Routes */}
               <Route path="/admin/attendance" element={<Attendance />} />

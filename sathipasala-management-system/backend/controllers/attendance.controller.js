@@ -1,301 +1,273 @@
-const Student = require('../models/student.model');
-const Attendance = require('../models/attendance.model');
-const Event = require('../models/event.model');
-const { startOfDay, endOfDay, startOfMonth, endOfMonth, parseISO, format } = require('date-fns');
+const Attendance = require('../models/Attendance');
+const Student = require('../models/Student');
+const ErrorResponse = require('../utils/errorResponse');
+const asyncHandler = require('../middleware/async.middleware');
+const mongoose = require('mongoose');
 
-// @desc    Mark attendance for students
-// @route   POST /api/attendance
-// @access  Private/Admin,Teacher
-exports.markAttendance = async (req, res) => {
-  try {
-    const { date, records } = req.body;
-    
-    if (!date || !records || !Array.isArray(records)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid request data'
-      });
-    }
-    
-    const attendanceDate = new Date(date);
-    const results = [];
-    
-    for (const record of records) {
-      const { studentId, status, reason, flowerOffering } = record;
-      
-      // Find student to ensure they exist
-      const student = await Student.findById(studentId);
-      if (!student) {
-        results.push({
-          studentId,
-          success: false,
-          message: 'Student not found'
-        });
-        continue;
-      }
-      
-      try {
-        // Check if attendance record already exists for this student on this date
-        let attendanceRecord = await Attendance.findOne({
-          studentId,
-          date: {
-            $gte: startOfDay(attendanceDate),
-            $lte: endOfDay(attendanceDate)
-          }
-        });
-        
-        if (attendanceRecord) {
-          // Update existing record
-          attendanceRecord.status = status;
-          attendanceRecord.reason = reason || '';
-          
-          if (flowerOffering) {
-            attendanceRecord.flowerOffering = {
-              brought: flowerOffering.brought || false,
-              flowerType: flowerOffering.flowerType || '',
-              notes: flowerOffering.notes || ''
-            };
-          }
-          
-          await attendanceRecord.save();
-        } else {
-          // Create new record
-          attendanceRecord = await Attendance.create({
-            studentId,
-            date: attendanceDate,
-            status,
-            reason: reason || '',
-            flowerOffering: flowerOffering || { brought: false },
-            markedBy: req.user._id
-          });
-        }
-        
-        results.push({
-          studentId,
-          success: true,
-          data: attendanceRecord
-        });
-      } catch (err) {
-        results.push({
-          studentId,
-          success: false,
-          message: err.message
-        });
-      }
-    }
-    
-    return res.status(200).json({
-      success: true,
-      data: results
-    });
-  } catch (error) {
-    console.error('Error marking attendance:', error);
-    return res.status(500).json({
-      success: false,
-      message: error.message || 'Failed to mark attendance'
-    });
-  }
-};
-
-// @desc    Get attendance records for a specific student
-// @route   GET /api/attendance/student/:id
-// @access  Private/Admin,Teacher
-exports.getStudentAttendance = async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { startDate, endDate } = req.query;
-    
-    // Find the student to ensure they exist
-    const student = await Student.findById(id);
-    if (!student) {
-      return res.status(404).json({
-        success: false,
-        message: 'Student not found'
-      });
-    }
-    
-    // Create date filters
-    const dateFilter = {};
-    if (startDate) {
-      dateFilter.$gte = startOfDay(new Date(startDate));
-    }
-    if (endDate) {
-      dateFilter.$lte = endOfDay(new Date(endDate));
-    }
-    
-    // Find all attendance records for this student
-    const attendanceRecords = await Attendance.find({
-      studentId: id,
-      ...(Object.keys(dateFilter).length > 0 ? { date: dateFilter } : {})
-    }).sort({ date: 1 });
-    
-    // Transform records for the frontend
-    const formattedRecords = attendanceRecords.map(record => ({
-      date: format(record.date, 'yyyy-MM-dd'),
-      status: record.status,
-      reason: record.reason || '',
-      flowerOffering: record.flowerOffering || { brought: false }
-    }));
-    
-    // Calculate summary statistics
-    const totalRecords = formattedRecords.length;
-    const presentCount = formattedRecords.filter(r => r.status === 'present').length;
-    const absentCount = formattedRecords.filter(r => r.status === 'absent').length;
-    const lateCount = formattedRecords.filter(r => r.status === 'late').length;
-    const flowerCount = formattedRecords.filter(r => r.flowerOffering?.brought).length;
-    
-    const attendanceRate = totalRecords > 0 
-      ? (presentCount / totalRecords * 100).toFixed(1) 
-      : 0;
-    
-    return res.status(200).json({
-      success: true,
-      data: formattedRecords,
-      summary: {
-        total: totalRecords,
-        present: presentCount,
-        absent: absentCount,
-        late: lateCount,
-        flowerOfferings: flowerCount,
-        attendanceRate
-      }
-    });
-  } catch (error) {
-    console.error('Error fetching student attendance:', error);
-    return res.status(500).json({
-      success: false,
-      message: error.message || 'Failed to fetch attendance records'
-    });
-  }
-};
-
-// @desc    Get events (holidays, poya days, etc)
-// @route   GET /api/attendance/events
-// @access  Private/Admin,Teacher
-exports.getEvents = async (req, res) => {
-  try {
-    const { year, month } = req.query;
-    
-    let dateFilter = {};
-    
-    if (year && month) {
-      const startDate = startOfMonth(new Date(year, month - 1, 1));
-      const endDate = endOfMonth(new Date(year, month - 1, 1));
-      dateFilter.date = {
-        $gte: startDate,
-        $lte: endDate
-      };
-    }
-    
-    const events = await Event.find(dateFilter);
-    
-    return res.status(200).json({
-      success: true,
-      data: events
-    });
-  } catch (error) {
-    console.error('Error fetching events:', error);
-    return res.status(500).json({
-      success: false,
-      message: error.message || 'Failed to fetch events'
-    });
-  }
-};
-
-// @desc    Get attendance report
-// @route   GET /api/attendance/report
-// @access  Private/Admin,Teacher
-exports.getAttendanceReport = async (req, res) => {
-  try {
-    const { startDate, endDate, classYear, classCode } = req.query;
-    
-    // Create filters
-    let dateFilter = {};
-    if (startDate) {
-      dateFilter.$gte = startOfDay(new Date(startDate));
-    }
-    if (endDate) {
-      dateFilter.$lte = endOfDay(new Date(endDate));
-    }
-    
-    // Find all students matching class filters
-    const studentFilter = {};
-    if (classYear) studentFilter.classYear = classYear;
-    if (classCode) studentFilter.classCode = classCode;
-    
-    const students = await Student.find(studentFilter);
-    
-    // Get attendance records for these students
+/**
+ * @desc    Get attendance records by date and optional classCode
+ * @route   GET /api/attendance/date/:date
+ * @access  Private
+ */
+exports.getAttendanceByDate = asyncHandler(async (req, res, next) => {
+  const { date } = req.params;
+  const { classCode } = req.query;
+  
+  console.log(`Fetching attendance for date ${date} and class ${classCode || 'all'}`);
+  
+  // Convert date string to Date object for MongoDB query
+  const queryDate = new Date(date);
+  // Set time to beginning of day
+  queryDate.setUTCHours(0, 0, 0, 0);
+  
+  // Create end date (next day)
+  const endDate = new Date(queryDate);
+  endDate.setUTCHours(23, 59, 59, 999);
+  
+  let query = { 
+    date: { 
+      $gte: queryDate, 
+      $lt: endDate 
+    } 
+  };
+  
+  // If classCode is provided, filter by students in that class
+  if (classCode) {
+    // First find students with this class code
+    const students = await Student.find({ classCode }).select('_id');
     const studentIds = students.map(s => s._id);
     
-    const attendanceRecords = await Attendance.find({
-      studentId: { $in: studentIds },
-      ...(Object.keys(dateFilter).length > 0 ? { date: dateFilter } : {})
-    });
-    
-    // Organize data by date and student
-    const reportData = {};
-    const studentMap = {};
-    
-    // Build student map for quick lookup
-    students.forEach(student => {
-      studentMap[student._id] = {
-        id: student._id,
-        studentId: student.studentId,
-        name: student.name
-      };
-    });
-    
-    // Organize attendance data
-    attendanceRecords.forEach(record => {
-      const dateStr = format(record.date, 'yyyy-MM-dd');
-      
-      if (!reportData[dateStr]) {
-        reportData[dateStr] = {
-          date: dateStr,
-          total: students.length,
-          present: 0,
-          absent: 0,
-          late: 0,
-          flowerOfferings: 0,
-          students: {}
-        };
-      }
-      
-      reportData[dateStr].students[record.studentId] = {
-        status: record.status,
-        reason: record.reason,
-        flowerOffering: record.flowerOffering
-      };
-      
-      // Update counters
-      if (record.status === 'present') reportData[dateStr].present++;
-      else if (record.status === 'absent') reportData[dateStr].absent++;
-      else if (record.status === 'late') reportData[dateStr].late++;
-      
-      if (record.flowerOffering?.brought) {
-        reportData[dateStr].flowerOfferings++;
-      }
-    });
-    
-    // Calculate attendance rates
-    const report = Object.values(reportData).map(day => {
-      const attendanceRate = ((day.present + day.late) / day.total * 100).toFixed(1);
-      return {
-        ...day,
-        attendanceRate
-      };
-    });
+    if (studentIds.length > 0) {
+      query.student = { $in: studentIds };
+    } else {
+      // No students in this class, return empty result
+      return res.status(200).json({
+        success: true,
+        count: 0,
+        data: []
+      });
+    }
+  }
+  
+  console.log('Attendance query:', JSON.stringify(query));
+  
+  // Find attendance records
+  const attendanceRecords = await Attendance.find(query).populate({
+    path: 'student',
+    select: 'name studentId classCode profileImage'
+  });
+  
+  res.status(200).json({
+    success: true,
+    count: attendanceRecords.length,
+    data: attendanceRecords
+  });
+});
+
+/**
+ * @desc    Mark attendance for a single student
+ * @route   POST /api/attendance
+ * @access  Private
+ */
+exports.markAttendance = asyncHandler(async (req, res, next) => {
+  console.log('Marking attendance for single student:', req.body);
+  
+  const { student, date, status, broughtFlowers, notes } = req.body;
+  
+  // Check if student exists
+  const studentExists = await Student.findById(student);
+  if (!studentExists) {
+    return next(new ErrorResponse(`Student with ID ${student} not found`, 404));
+  }
+  
+  // Try to find existing attendance record first
+  let attendance = await Attendance.findOne({
+    student,
+    date: new Date(date)
+  });
+  
+  if (attendance) {
+    // Update existing record
+    attendance = await Attendance.findByIdAndUpdate(
+      attendance._id,
+      { status, broughtFlowers, notes },
+      { new: true, runValidators: true }
+    );
     
     return res.status(200).json({
       success: true,
-      data: report
-    });
-  } catch (error) {
-    console.error('Error generating attendance report:', error);
-    return res.status(500).json({
-      success: false,
-      message: error.message || 'Failed to generate attendance report'
+      data: attendance,
+      message: 'Attendance record updated'
     });
   }
-};
+  
+  // Create new record
+  attendance = await Attendance.create({
+    student,
+    date,
+    status: status || 'present',
+    broughtFlowers: broughtFlowers || false,
+    notes: notes || ''
+  });
+  
+  res.status(201).json({
+    success: true,
+    data: attendance,
+    message: 'New attendance record created'
+  });
+});
+
+/**
+ * @desc    Mark attendance for multiple students in a batch
+ * @route   POST /api/attendance/batch
+ * @access  Private
+ */
+exports.markBatchAttendance = asyncHandler(async (req, res, next) => {
+  try {
+    console.log('Processing batch attendance request');
+    const { attendance } = req.body;
+    
+    if (!attendance || !Array.isArray(attendance) || attendance.length === 0) {
+      return next(new ErrorResponse('Please provide attendance data as an array', 400));
+    }
+    
+    console.log(`Processing batch attendance for ${attendance.length} students`);
+    
+    // Process each record individually, which is more reliable
+    const results = {
+      created: 0,
+      updated: 0,
+      failed: 0,
+      errors: []
+    };
+    
+    for (const record of attendance) {
+      try {
+        // Validate each record
+        if (!record.student || !mongoose.Types.ObjectId.isValid(record.student)) {
+          results.failed++;
+          results.errors.push(`Invalid student ID: ${record.student}`);
+          continue;
+        }
+        
+        if (!record.date) {
+          results.failed++;
+          results.errors.push('Missing date');
+          continue;
+        }
+        
+        // Normalize date to midnight UTC
+        const normalizedDate = new Date(record.date);
+        normalizedDate.setUTCHours(0, 0, 0, 0);
+        
+        // Check if record already exists for this student and date
+        const existingAttendance = await Attendance.findOne({
+          student: record.student,
+          date: normalizedDate
+        });
+        
+        if (existingAttendance) {
+          // Update existing record
+          await Attendance.updateOne(
+            { _id: existingAttendance._id },
+            { 
+              $set: {
+                status: record.status || existingAttendance.status,
+                broughtFlowers: record.broughtFlowers !== undefined ? record.broughtFlowers : existingAttendance.broughtFlowers,
+                notes: record.notes || existingAttendance.notes,
+                updatedAt: new Date()
+              }
+            }
+          );
+          results.updated++;
+          console.log(`Updated attendance for student ${record.student}`);
+        } else {
+          // Create new record
+          await Attendance.create({
+            student: record.student,
+            date: normalizedDate,
+            status: record.status || 'present',
+            broughtFlowers: record.broughtFlowers || false,
+            notes: record.notes || ''
+          });
+          results.created++;
+          console.log(`Created attendance for student ${record.student}`);
+        }
+      } catch (error) {
+        console.error('Error processing attendance record:', error);
+        results.failed++;
+        results.errors.push(`Error with student ${record.student}: ${error.message}`);
+      }
+    }
+    
+    console.log(`Attendance processing complete: ${results.created} created, ${results.updated} updated, ${results.failed} failed`);
+    
+    res.status(200).json({
+      success: true,
+      message: `Successfully processed attendance: ${results.created} created, ${results.updated} updated, ${results.failed} failed`,
+      data: results
+    });
+    
+  } catch (error) {
+    console.error('Error in batch attendance:', error);
+    return next(new ErrorResponse(`Failed to process attendance: ${error.message}`, 500));
+  }
+});
+
+/**
+ * @desc    Get attendance by student ID
+ * @route   GET /api/attendance/student/:id
+ * @access  Private
+ */
+exports.getStudentAttendance = asyncHandler(async (req, res, next) => {
+  const { id } = req.params;
+  
+  // Get date range if provided in query
+  const { startDate, endDate } = req.query;
+  
+  // Check if student exists
+  const student = await Student.findById(id);
+  if (!student) {
+    return next(new ErrorResponse(`Student with ID ${id} not found`, 404));
+  }
+  
+  // Build query
+  const query = { student: id };
+  
+  // Add date range if provided
+  if (startDate && endDate) {
+    query.date = {
+      $gte: new Date(startDate),
+      $lte: new Date(endDate)
+    };
+  }
+  
+  // Get attendance records
+  const attendanceRecords = await Attendance.find(query).sort({ date: -1 });
+  
+  res.status(200).json({
+    success: true,
+    count: attendanceRecords.length,
+    data: attendanceRecords
+  });
+});
+
+/**
+ * @desc    Delete attendance record
+ * @route   DELETE /api/attendance/:id
+ * @access  Private (Admin)
+ */
+exports.deleteAttendance = asyncHandler(async (req, res, next) => {
+  const attendance = await Attendance.findById(req.params.id);
+  
+  if (!attendance) {
+    return next(new ErrorResponse(`Attendance record not found with id ${req.params.id}`, 404));
+  }
+  
+  await attendance.deleteOne();
+  
+  res.status(200).json({
+    success: true,
+    data: {}
+  });
+});

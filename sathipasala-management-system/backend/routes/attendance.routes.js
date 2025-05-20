@@ -1,18 +1,44 @@
 const express = require('express');
-const router = express.Router();
-const attendanceController = require('../controllers/attendance.controller');
+const {
+  getAttendanceByDate,
+  markAttendance,
+  markBatchAttendance,
+  getStudentAttendance,
+  deleteAttendance
+} = require('../controllers/attendance.controller');
 const { protect, authorize } = require('../middleware/auth.middleware');
 
-// Get attendance for specific student
-router.get('/student/:id', protect, authorize('admin', 'teacher'), attendanceController.getStudentAttendance);
+const router = express.Router();
 
-// Mark attendance for students
-router.post('/', protect, authorize('admin', 'teacher'), attendanceController.markAttendance);
+// Debug middleware
+router.use((req, res, next) => {
+  console.log(`Attendance route requested: ${req.method} ${req.originalUrl}`);
+  next();
+});
 
-// Get events (holidays, poya days, etc.)
-router.get('/events', protect, authorize('admin', 'teacher'), attendanceController.getEvents);
+// Batch attendance route
+router
+  .route('/batch')
+  .post(protect, authorize('admin', 'teacher'), markBatchAttendance);
 
-// Get attendance report
-router.get('/report', protect, authorize('admin', 'teacher'), attendanceController.getAttendanceReport);
+// Date-specific attendance
+router
+  .route('/date/:date')
+  .get(protect, getAttendanceByDate);
+
+// Student-specific attendance - FIXED: Changed from getAttendanceByStudent to getStudentAttendance
+router
+  .route('/student/:id')
+  .get(protect, getStudentAttendance);
+
+// Individual attendance records
+router
+  .route('/')
+  .post(protect, authorize('admin', 'teacher'), markAttendance);
+
+// Delete attendance record
+router
+  .route('/:id')
+  .delete(protect, authorize('admin'), deleteAttendance);
 
 module.exports = router;

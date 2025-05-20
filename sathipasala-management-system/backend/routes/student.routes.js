@@ -4,22 +4,52 @@ const {
   getStudents,
   getStudent,
   updateStudent,
-  deleteStudent
+  deleteStudent,
+  getClassGroups
 } = require('../controllers/student.controller');
 const { protect, authorize } = require('../middleware/auth.middleware');
 const upload = require('../middleware/upload.middleware');
 
 const router = express.Router();
 
+// Add debugging middleware to check route resolution
+router.use((req, res, next) => {
+  console.log(`Student route requested: ${req.method} ${req.originalUrl}`);
+  next();
+});
+
+// List/create students
 router
   .route('/')
   .post(protect, authorize('admin'), upload.single('profileImage'), registerStudent)
   .get(protect, authorize('admin', 'teacher'), getStudents);
 
+// Special fixed routes MUST come before the dynamic :id route
+console.log('Registering special /classes route');
+router
+  .route('/classes')
+  .get(protect, authorize('admin', 'teacher'), (req, res, next) => {
+    console.log('Classes endpoint triggered');
+    getClassGroups(req, res, next);
+  });
+
+// Create a special middleware to handle ID parameters but reject 'classes'
+router.param('id', (req, res, next, id) => {
+  if (id === 'classes') {
+    console.log('Rejected "classes" as ID parameter - using special route instead');
+    return res.status(400).json({
+      success: false,
+      message: 'Invalid student ID: Use /api/students/classes endpoint for class data'
+    });
+  }
+  next();
+});
+
+// Student by ID routes
 router
   .route('/:id')
   .get(protect, getStudent)
-  .put(protect, authorize('admin'), upload.single('profileImage'), updateStudent) // Add upload middleware here
+  .put(protect, authorize('admin'), upload.single('profileImage'), updateStudent)
   .delete(protect, authorize('admin'), deleteStudent);
 
 module.exports = router;

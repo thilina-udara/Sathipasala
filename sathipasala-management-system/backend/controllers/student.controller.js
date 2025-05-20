@@ -62,6 +62,9 @@ exports.getStudents = asyncHandler(async (req, res, next) => {
   if (classCode) query.classCode = classCode;
   if (ageGroup) query.ageGroup = ageGroup;
 
+  // Debug info for filtering
+  console.log('Student filtering query:', JSON.stringify(query));
+
   // Count total documents
   const totalItems = await Student.countDocuments(query);
 
@@ -220,4 +223,63 @@ exports.deleteStudent = asyncHandler(async (req, res, next) => {
     success: true,
     data: {}
   });
+});
+
+/**
+ * @desc    Get class groups statistics
+ * @route   GET /api/students/classes
+ * @access  Private (Admin, Teacher)
+ */
+exports.getClassGroups = asyncHandler(async (req, res, next) => {
+  console.log('Class groups controller function called');
+  
+  try {
+    // Aggregate students by class
+    const classCounts = await Student.aggregate([
+      {
+        $group: {
+          _id: {
+            classCode: "$classCode",
+            classYear: "$classYear"
+          },
+          count: { $sum: 1 },
+          ageGroups: { $addToSet: "$ageGroup" }
+        }
+      },
+      {
+        $sort: {
+          "_id.classYear": -1,
+          "_id.classCode": 1
+        }
+      }
+    ]);
+    
+    // Class information with color coding and display names
+    const classInfo = {
+      'ADH': { name: 'Adhiṭṭhāna', nameSi: 'අධිඨාන', color: 'white', colorClass: 'bg-white text-gray-900 border-gray-200' },
+      'MET': { name: 'Mettā', nameSi: 'මෙත්තා', color: 'orange', colorClass: 'bg-orange-100 text-orange-900' },
+      'KHA': { name: 'Khanti', nameSi: 'ඛන්ති', color: 'yellow', colorClass: 'bg-yellow-100 text-yellow-900' },
+      'NEK': { name: 'Nekkhamma', nameSi: 'නෙක්කම්ම', color: 'blue', colorClass: 'bg-blue-100 text-blue-900' }
+    };
+    
+    // Format response with class information
+    const response = classCounts.map(group => ({
+      classCode: group._id.classCode,
+      classYear: group._id.classYear,
+      count: group.count,
+      ageGroups: group.ageGroups,
+      ...classInfo[group._id.classCode]
+    }));
+    
+    console.log(`Returning class data: ${response.length} classes found`);
+    
+    // Return the class grouping
+    return res.status(200).json({
+      success: true,
+      data: response
+    });
+  } catch (error) {
+    console.error('Error in getClassGroups:', error);
+    return next(new ErrorResponse('Failed to retrieve class data', 500));
+  }
 });
