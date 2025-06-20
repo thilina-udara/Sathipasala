@@ -1,163 +1,294 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
-import { FaUserGraduate, FaChalkboardTeacher, FaCalendarCheck, FaArrowRight, FaCircle, FaSync, FaListUl } from 'react-icons/fa';
+import { motion } from 'framer-motion';
+import { 
+  FaUserGraduate, 
+  FaCalendarCheck, 
+  FaArrowRight, 
+  FaSync, 
+  FaExclamationTriangle, 
+  FaUserFriends, 
+  FaChevronRight
+} from 'react-icons/fa';
+
+// Import ShadCN components
+import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Progress } from "@/components/ui/progress";
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 const ClassGroups = () => {
   const { t } = useTranslation();
+  const navigate = useNavigate();
+  const location = useLocation();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [classStats, setClassStats] = useState({
-    ADH: { totalStudents: 0, attendanceRate: 0, lastClassDate: null },
-    MET: { totalStudents: 0, attendanceRate: 0, lastClassDate: null },
-    KHA: { totalStudents: 0, attendanceRate: 0, lastClassDate: null },
-    NEK: { totalStudents: 0, attendanceRate: 0, lastClassDate: null }
+    ADH: { totalStudents: 0, attendanceRate: 0, lastClassDate: null, todayAttendance: 0 },
+    MET: { totalStudents: 0, attendanceRate: 0, lastClassDate: null, todayAttendance: 0 },
+    KHA: { totalStudents: 0, attendanceRate: 0, lastClassDate: null, todayAttendance: 0 },
+    NEK: { totalStudents: 0, attendanceRate: 0, lastClassDate: null, todayAttendance: 0 }
   });
-  const [teacherAssignments, setTeacherAssignments] = useState({});
+  const [teacherAssignments, setTeacherAssignments] = useState({
+    ADH: { name: 'Mihiri Rathnayake' },
+    MET: { name: 'Anura Bandara' },
+    KHA: { name: 'Tharaka Fernando' },
+    NEK: { name: 'Priya Gunasekara' }
+  });
   const [refreshing, setRefreshing] = useState(false);
+  const [activeTab, setActiveTab] = useState("overview");
 
-  // Add these state variables for handling student view modal
+  // Student modal state
   const [showStudentsModal, setShowStudentsModal] = useState(false);
   const [selectedClass, setSelectedClass] = useState(null);
   const [classStudents, setClassStudents] = useState([]);
   const [loadingStudents, setLoadingStudents] = useState(false);
 
-  // Create a fetchClassData function that can be called on refresh
+  // Define class styles
+  const classStyles = {
+    ADH: {
+      name: 'Adhiṭṭhāna',
+      nameSi: 'අධිඨාන',
+      cardBg: 'bg-gradient-to-b from-slate-50 to-white dark:from-slate-900 dark:to-slate-800',
+      badge: 'bg-slate-100 text-slate-900 dark:bg-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700',
+      progressColor: 'bg-slate-600 dark:bg-slate-400',
+      borderColor: 'border-t-slate-500',
+      buttonBg: 'bg-slate-800 hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600',
+      iconColor: 'text-slate-700 dark:text-slate-300',
+      description: '3-6 years'
+    },
+    MET: {
+      name: 'Mettā',
+      nameSi: 'මෙත්තා',
+      cardBg: 'bg-gradient-to-b from-amber-50 to-white dark:from-amber-900/30 dark:to-slate-800',
+      badge: 'bg-amber-100 text-amber-900 dark:bg-amber-900 dark:text-amber-50 border border-amber-200 dark:border-amber-800',
+      progressColor: 'bg-amber-500 dark:bg-amber-400',
+      borderColor: 'border-t-amber-500',
+      buttonBg: 'bg-amber-600 hover:bg-amber-700 dark:bg-amber-700 dark:hover:bg-amber-600',
+      iconColor: 'text-amber-600 dark:text-amber-400',
+      description: '7-10 years'
+    },
+    KHA: {
+      name: 'Khanti',
+      nameSi: 'ඛන්ති',
+      cardBg: 'bg-gradient-to-b from-yellow-50 to-white dark:from-yellow-900/30 dark:to-slate-800',
+      badge: 'bg-yellow-100 text-yellow-900 dark:bg-yellow-900 dark:text-yellow-50 border border-yellow-200 dark:border-yellow-800',
+      progressColor: 'bg-yellow-500 dark:bg-yellow-400',
+      borderColor: 'border-t-yellow-500',
+      buttonBg: 'bg-yellow-600 hover:bg-yellow-700 dark:bg-yellow-700 dark:hover:bg-yellow-600',
+      iconColor: 'text-yellow-600 dark:text-yellow-400',
+      description: '11-13 years'
+    },
+    NEK: {
+      name: 'Nekkhamma',
+      nameSi: 'නෙක්කම්ම',
+      cardBg: 'bg-gradient-to-b from-blue-50 to-white dark:from-blue-900/30 dark:to-slate-800',
+      badge: 'bg-blue-100 text-blue-900 dark:bg-blue-900 dark:text-blue-50 border border-blue-200 dark:border-blue-800',
+      progressColor: 'bg-blue-500 dark:bg-blue-400',
+      borderColor: 'border-t-blue-500',
+      buttonBg: 'bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600',
+      iconColor: 'text-blue-600 dark:text-blue-400',
+      description: '14+ years'
+    }
+  };
+
+  // Helper function for authentication headers
+  const getAuthHeaders = () => {
+    const token = localStorage.getItem('token');
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  };
+
+  // Calculate total attendance for today
+  const getTodayTotalAttendance = (stats) => {
+    return Object.values(stats).reduce(
+      (sum, classStat) => sum + (classStat.todayAttendance || 0),
+      0
+    );
+  };
+
+  // Fetch class data with today's attendance
   const fetchClassData = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
       
-      console.log("Fetching real class statistics...");
-      
-      // Fetch actual student counts by class code
-      const studentResponse = await axios.get('/api/stats/student-counts-by-class', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      }).catch(err => {
-        console.warn("Error fetching student counts:", err);
-        return { data: { success: false } };
-      });
-      
-      // Fetch attendance statistics by class
-      const attendanceResponse = await axios.get('/api/stats/attendance-by-class', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
-        }
-      }).catch(err => {
-        console.warn("Error fetching attendance stats:", err);
-        return { data: { success: false } };
-      });
-      
-      // Prepare stats object
+      // Initialize stats with today's attendance field
       const updatedStats = {
-        ADH: { totalStudents: 0, attendanceRate: 0, lastClassDate: null },
-        MET: { totalStudents: 0, attendanceRate: 0, lastClassDate: null },
-        KHA: { totalStudents: 0, attendanceRate: 0, lastClassDate: null },
-        NEK: { totalStudents: 0, attendanceRate: 0, lastClassDate: null }
+        ADH: { totalStudents: 0, attendanceRate: 0, lastClassDate: null, todayAttendance: 0 },
+        MET: { totalStudents: 0, attendanceRate: 0, lastClassDate: null, todayAttendance: 0 },
+        KHA: { totalStudents: 0, attendanceRate: 0, lastClassDate: null, todayAttendance: 0 },
+        NEK: { totalStudents: 0, attendanceRate: 0, lastClassDate: null, todayAttendance: 0 }
       };
       
-      // Update with real student counts if available
-      if (studentResponse.data && studentResponse.data.success) {
-        const counts = studentResponse.data.data;
-        Object.keys(counts).forEach(code => {
-          if (updatedStats[code]) {
-            updatedStats[code].totalStudents = counts[code] || 0;
-          }
-        });
-        console.log("Updated with real student counts:", counts);
-      } else {
-        // Fallback to direct database query
-        try {
-          const directCountResponse = await axios.get('/api/students?limit=999', {
-            headers: {
-              'Authorization': `Bearer ${localStorage.getItem('token')}`
-            }
-          });
-          
-          if (directCountResponse.data && directCountResponse.data.success) {
-            // Count students by class code
-            const students = directCountResponse.data.data || [];
-            const classCounts = {};
-            
-            students.forEach(student => {
-              const classCode = student.classCode;
-              if (classCode) {
-                classCounts[classCode] = (classCounts[classCode] || 0) + 1;
-              }
-            });
-            
-            // Update stats with these counts
-            Object.keys(classCounts).forEach(code => {
-              if (updatedStats[code]) {
-                updatedStats[code].totalStudents = classCounts[code] || 0;
-              }
-            });
-            
-            console.log("Calculated student counts from raw data:", classCounts);
-          }
-        } catch (err) {
-          console.error("Failed to get direct student counts:", err);
-        }
+      // Check if we have a valid token first
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error("Authentication token is missing. Please log in again.");
       }
       
-      // Update with real attendance rates if available
-      if (attendanceResponse.data && attendanceResponse.data.success) {
-        const rates = attendanceResponse.data.data;
-        Object.keys(rates).forEach(code => {
-          if (updatedStats[code]) {
-            updatedStats[code].attendanceRate = rates[code]?.rate || 0;
-            updatedStats[code].lastClassDate = rates[code]?.lastDate || null;
-          }
-        });
-        console.log("Updated with real attendance rates:", rates);
-      } else {
-        // Set reasonable defaults for attendance rates
-        Object.keys(updatedStats).forEach(code => {
-          updatedStats[code].attendanceRate = Math.floor(75 + Math.random() * 20); // 75-95%
-          updatedStats[code].lastClassDate = new Date().toISOString().split('T')[0];
-        });
-      }
-      
-      setClassStats(updatedStats);
-      
-      // Try to get teacher assignments
       try {
-        const teacherResponse = await axios.get('/api/teachers/assignments', {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
+        // Step 1: Get student counts with better error handling
+        const studentCountsResponse = await axios.get('/api/stats/student-counts-by-class', {
+          headers: getAuthHeaders()
+        }).catch(err => {
+          if (err.response?.status === 401) {
+            console.error("Authentication failed: Token may be expired");
+            throw new Error("Your session has expired. Please log in again.");
           }
+          console.warn("Failed to fetch student counts:", err);
+          return { data: { success: false } };
         });
         
-        if (teacherResponse.data && teacherResponse.data.success) {
-          setTeacherAssignments(teacherResponse.data.data);
+        if (studentCountsResponse.data && studentCountsResponse.data.success) {
+          // Update student counts
+          const counts = studentCountsResponse.data.data;
+          Object.keys(counts).forEach(code => {
+            if (updatedStats[code]) {
+              updatedStats[code].totalStudents = counts[code] || 0;
+            }
+          });
+          console.log("Student count data loaded:", counts);
         } else {
-          // Use mock data
-          setTeacherAssignments({
-            ADH: ['Mihiri Rathnayake', 'Lakshmi Perera'],
-            MET: ['Anura Bandara', 'Chamini Silva'],
-            KHA: ['Tharaka Fernando', 'Dinesh Jayawardena'],
-            NEK: ['Priya Gunasekara', 'Nadun Amarasinghe']
+          // Fallback: fetch student list and count manually
+          try {
+            const studentsResponse = await axios.get('/api/students', {
+              headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
+              params: { limit: 500 }
+            });
+            
+            if (studentsResponse.data && studentsResponse.data.success) {
+              const students = studentsResponse.data.data || [];
+              const classCounts = { ADH: 0, MET: 0, KHA: 0, NEK: 0 };
+              
+              students.forEach(student => {
+                if (student.classCode && classCounts.hasOwnProperty(student.classCode)) {
+                  classCounts[student.classCode]++;
+                }
+              });
+              
+              Object.keys(classCounts).forEach(code => {
+                updatedStats[code].totalStudents = classCounts[code];
+              });
+              console.log("Student counts calculated:", classCounts);
+            } else {
+              throw new Error("Could not fetch students");
+            }
+          } catch (err) {
+            console.error("Could not determine student counts:", err);
+            // Use mock student counts
+            updatedStats.ADH.totalStudents = 25;
+            updatedStats.MET.totalStudents = 32;
+            updatedStats.KHA.totalStudents = 28;
+            updatedStats.NEK.totalStudents = 19;
+          }
+        }
+        
+        // Step 2: Get today's attendance - Fix to properly count present students
+        try {
+          const today = new Date().toISOString().split('T')[0];
+          console.log("Fetching attendance for date:", today);
+          
+          const todayAttendanceResponse = await axios.get(`/api/attendance/date/${today}`, {
+            headers: getAuthHeaders()
+          });
+          if (todayAttendanceResponse?.data?.success) {
+            const attendanceByClass = { ADH: 0, MET: 0, KHA: 0, NEK: 0 };
+            todayAttendanceResponse.data.data.forEach(record => {
+              if (record.status === 'present' && record.studentId?.classCode) {
+                attendanceByClass[record.studentId.classCode]++;
+              }
+            });
+            Object.keys(attendanceByClass).forEach(code => {
+              updatedStats[code].todayAttendance = attendanceByClass[code];
+            });
+          }
+        } catch (err) {
+          console.error("Error fetching today's attendance:", err);
+          // Keep values as is (zero) if there's an error
+        }
+        
+        // Step 3: Get attendance rates (keep this as is)
+        const attendanceRatesResponse = await axios.get('/api/stats/attendance-by-class', {
+          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+        }).catch(err => {
+          console.warn("Failed to fetch attendance rates:", err);
+          return { data: { success: false } };
+        });
+        
+        if (attendanceRatesResponse.data && attendanceRatesResponse.data.success) {
+          const rates = attendanceRatesResponse.data.data;
+          Object.keys(rates).forEach(code => {
+            if (updatedStats[code]) {
+              updatedStats[code].attendanceRate = rates[code]?.rate || 0;
+              updatedStats[code].lastClassDate = rates[code]?.lastDate || null;
+            }
+          });
+          console.log("Attendance rates loaded:", rates);
+        } else {
+          // Use mock attendance rates
+          Object.keys(updatedStats).forEach(code => {
+            updatedStats[code].attendanceRate = Math.round(70 + Math.random() * 20); // 70-90%
+            updatedStats[code].lastClassDate = new Date().toISOString().split('T')[0];
           });
         }
-      } catch (err) {
-        console.warn("Error fetching teacher assignments:", err);
-        // Use mock data
-        setTeacherAssignments({
-          ADH: ['Mihiri Rathnayake', 'Lakshmi Perera'],
-          MET: ['Anura Bandara', 'Chamini Silva'],
-          KHA: ['Tharaka Fernando', 'Dinesh Jayawardena'],
-          NEK: ['Priya Gunasekara', 'Nadun Amarasinghe']
-        });
+        
+        // Update class stats with all data
+        setClassStats(updatedStats);
+        
+      } catch (error) {
+        // Check for auth errors
+        if (error.message.includes("authentication") || error.message.includes("session")) {
+          // Handle authentication errors
+          setError(error.message);
+          // Optionally redirect to login
+          // setTimeout(() => navigate('/login'), 3000);
+        } else {
+          console.error('API error:', error);
+          // Use mock data for development
+          setClassStats({
+            ADH: { totalStudents: 25, attendanceRate: 86, lastClassDate: new Date().toISOString(), todayAttendance: 21 },
+            MET: { totalStudents: 32, attendanceRate: 78, lastClassDate: new Date().toISOString(), todayAttendance: 25 },
+            KHA: { totalStudents: 28, attendanceRate: 92, lastClassDate: new Date().toISOString(), todayAttendance: 24 },
+            NEK: { totalStudents: 19, attendanceRate: 85, lastClassDate: new Date().toISOString(), todayAttendance: 16 }
+          });
+        }
+      } finally {
+        setLoading(false);
+        setRefreshing(false);
       }
-    } catch (err) {
-      console.error('Error fetching class data:', err);
-      setError('Unable to load class information. Please try again later.');
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
+    } catch (error) {
+      console.error('Error in fetchClassData:', error);
+      setError(error.message || 'Failed to load class information. Using sample data for display.');
+      
+      // Fallback mock data
+      setClassStats({
+        ADH: { totalStudents: 25, attendanceRate: 86, lastClassDate: new Date().toISOString(), todayAttendance: 21 },
+        MET: { totalStudents: 32, attendanceRate: 78, lastClassDate: new Date().toISOString(), todayAttendance: 25 },
+        KHA: { totalStudents: 28, attendanceRate: 92, lastClassDate: new Date().toISOString(), todayAttendance: 24 },
+        NEK: { totalStudents: 19, attendanceRate: 85, lastClassDate: new Date().toISOString(), todayAttendance: 16 }
+      });
     }
   }, []);
 
@@ -166,504 +297,499 @@ const ClassGroups = () => {
     fetchClassData();
   }, [fetchClassData]);
 
-  // Add a refresh function
-  const handleRefresh = () => {
+  // Add this effect to refresh data when the component gains focus
+  useEffect(() => {
+    // Initial load
+    fetchClassData();
+    
+    // Create event listeners for tab visibility
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        // Refresh data when tab becomes visible again
+        fetchClassData();
+      }
+    };
+    
+    // Listen for visibility changes (when user switches tabs and comes back)
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    // Cleanup
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [fetchClassData]);
+
+  // Handle refresh button click
+  const handleRefresh = useCallback(() => {
+    if (refreshing) return;
     setRefreshing(true);
     fetchClassData();
-  };
+  }, [refreshing, fetchClassData]);
 
-  // Styles for different class cards
-  const classStyles = {
-    ADH: {
-      name: t('classes.ADH.name'),
-      nameSi: t('classes.ADH.nameSi'),
-      bg: 'bg-white dark:bg-gray-800',
-      border: 'border-2 border-gray-200 dark:border-gray-700',
-      text: 'text-gray-900 dark:text-gray-100',
-      headingBg: 'bg-gray-100 dark:bg-gray-700',
-      statBg: 'bg-gray-50 dark:bg-gray-700',
-      icon: 'text-gray-400 dark:text-gray-500',
-      description: '3-6 years',
-      dotColor: 'text-gray-500'
-    },
-    MET: {
-      name: t('classes.MET.name'),
-      nameSi: t('classes.MET.nameSi'),
-      bg: 'bg-orange-50 dark:bg-orange-900/30',
-      border: 'border-2 border-orange-200 dark:border-orange-800',
-      text: 'text-orange-900 dark:text-orange-100',
-      headingBg: 'bg-orange-100 dark:bg-orange-800/40',
-      statBg: 'bg-orange-50 dark:bg-orange-900/40',
-      icon: 'text-orange-400 dark:text-orange-500',
-      description: '7-10 years',
-      dotColor: 'text-orange-500'
-    },
-    KHA: {
-      name: t('classes.KHA.name'),
-      nameSi: t('classes.KHA.nameSi'),
-      bg: 'bg-yellow-50 dark:bg-yellow-900/30',
-      border: 'border-2 border-yellow-200 dark:border-yellow-800',
-      text: 'text-yellow-900 dark:text-yellow-100',
-      headingBg: 'bg-yellow-100 dark:bg-yellow-800/40',
-      statBg: 'bg-yellow-50 dark:bg-yellow-900/40',
-      icon: 'text-yellow-400 dark:text-yellow-500',
-      description: '11-13 years',
-      dotColor: 'text-yellow-500'
-    },
-    NEK: {
-      name: t('classes.NEK.name'),
-      nameSi: t('classes.NEK.nameSi'),
-      bg: 'bg-blue-50 dark:bg-blue-900/30',
-      border: 'border-2 border-blue-200 dark:border-blue-800',
-      text: 'text-blue-900 dark:text-blue-100',
-      headingBg: 'bg-blue-100 dark:bg-blue-800/40',
-      statBg: 'bg-blue-50 dark:bg-blue-900/40',
-      icon: 'text-blue-400 dark:text-blue-500',
-      description: '14+ years',
-      dotColor: 'text-blue-500'
-    }
-  };
-
-  // Calculate total students across all classes
-  const totalStudents = Object.values(classStats).reduce(
-    (sum, stats) => sum + (stats.totalStudents || 0), 0
-  );
-  
-  // Calculate average attendance rate
-  const totalClasses = Object.values(classStats).filter(stats => stats.attendanceRate > 0).length;
-  const averageAttendance = totalClasses > 0
-    ? Math.round(Object.values(classStats).reduce(
-        (sum, stats) => sum + (stats.attendanceRate || 0), 0
-      ) / totalClasses)
-    : 0;
-
-  // Add the handleViewStudents function
-  const handleViewStudents = async (classCode) => {
+  // View students in a specific class
+  const handleViewStudents = useCallback(async (classCode) => {
     try {
       setLoadingStudents(true);
       setSelectedClass(classCode);
       setShowStudentsModal(true);
       
-      // Fetch students for the selected class
-      const response = await axios.get(`/api/students?classCode=${classCode}&limit=100`, {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+      try {
+        // Fetch students by class code
+        const response = await axios.get(`/api/students`, {
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('token')}`
+          },
+          params: {
+            classCode,
+            limit: 100
+          }
+        });
+        
+        if (response.data.success) {
+          setClassStudents(response.data.data || []);
+          console.log(`Loaded ${response.data.data?.length || 0} students for class ${classCode}`);
+        } else {
+          throw new Error('Failed to fetch students');
         }
-      });
-      
-      if (response.data.success) {
-        setClassStudents(response.data.data || []);
-      } else {
-        console.error('Failed to fetch students for class:', classCode);
-        setClassStudents([]);
+      } catch (apiError) {
+        console.error('API error when fetching students:', apiError);
+        
+        // Generate some mock students for development
+        const mockStudents = Array.from({ length: 10 }, (_, i) => ({
+          _id: `mock-${i}`,
+          studentId: `SP2023${classCode}${String(i+1).padStart(3, '0')}`,
+          name: {
+            en: `${classCode} Student ${i+1}`,
+            si: `${classCode} සිසුවා ${i+1}`
+          },
+          gender: Math.random() > 0.5 ? 'M' : 'F',
+          classCode,
+          profileImage: Math.random() > 0.3 ? {
+            url: `https://i.pravatar.cc/300?img=${Math.floor(Math.random() * 70)}`
+          } : null
+        }));
+        
+        setClassStudents(mockStudents);
       }
     } catch (err) {
-      console.error('Error fetching class students:', err);
+      console.error('Error preparing student data:', err);
       setClassStudents([]);
     } finally {
       setLoadingStudents(false);
     }
-  };
+  }, []);
 
-  // Add function to close the modal
-  const closeStudentsModal = () => {
+  // Close student modal
+  const closeStudentsModal = useCallback(() => {
     setShowStudentsModal(false);
-    setSelectedClass(null);
-    setClassStudents([]);
+    setTimeout(() => {
+      setSelectedClass(null);
+      setClassStudents([]);
+    }, 300);
+  }, []);
+
+  // Handle class attendance button click
+  const handleClassAttendance = (classCode) => {
+    navigate(`/admin/attendance?classCode=${classCode}`);
   };
 
-  // Helper function to safely display potentially multilingual text
+  // View all students in a class
+  const handleViewAllStudents = (classCode) => {
+    closeStudentsModal(); // Close the modal first
+    setTimeout(() => {
+      navigate(`/admin/students?classCode=${classCode}`);
+    }, 300);
+  };
+
+  // Helper for name display
   const safeDisplayName = (nameObj) => {
     if (!nameObj) return '';
     if (typeof nameObj === 'string') return nameObj;
     return nameObj.en || nameObj.si || '';
   };
 
+  // Calculate summary statistics
+  const totalStudents = Object.values(classStats).reduce(
+    (sum, stats) => sum + (stats.totalStudents || 0), 0
+  );
+  
+  const todayTotalAttendance = Object.values(classStats).reduce(
+    (sum, stats) => sum + (stats.todayAttendance || 0), 0
+  );
+  
+  const totalClasses = Object.keys(classStats).length;
+  const averageAttendance = totalClasses > 0
+    ? Math.round(Object.values(classStats).reduce(
+      (sum, stats) => sum + (stats.attendanceRate || 0), 0
+    ) / totalClasses)
+    : 0;
+
+  // Card skeleton for loading state
+  const CardSkeleton = () => (
+    <div className="rounded-lg border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
+      <Skeleton className="h-[260px] w-full" />
+    </div>
+  );
+
   return (
-    <div className="py-6">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center mb-6">
-          <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
-            Class Groups
-          </h1>
-          <div className="space-x-2">
-            <button
-              onClick={handleRefresh}
-              className="px-3 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 rounded-md text-gray-800 dark:text-gray-200 flex items-center"
-              disabled={refreshing}
-            >
-              <FaSync className={`mr-2 ${refreshing ? 'animate-spin' : ''}`} /> 
-              {refreshing ? 'Refreshing...' : 'Refresh Data'}
-            </button>
-            <button 
-              onClick={() => window.print()}
-              className="px-4 py-2 bg-gray-800 text-white rounded hover:bg-gray-700 transition-colors"
-            >
-              Export Report
-            </button>
-          </div>
+    <div className="container p-6 mx-auto">
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">Class Groups</h1>
+          <p className="text-muted-foreground mt-1">
+            Manage class groups and view statistics
+          </p>
         </div>
 
-        {error && (
-          <div className="bg-red-50 border border-red-200 text-red-800 rounded-md p-4 mb-4">
-            <h3 className="text-sm font-medium">Error</h3>
-            <div className="mt-2 text-sm text-red-700">{error}</div>
-          </div>
-        )}
+        <div className="mt-4 md:mt-0 space-x-2">
+          <Button 
+            variant="outline"
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="relative"
+          >
+            <FaSync className={`mr-2 h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+            {refreshing ? 'Refreshing...' : 'Refresh'}
+          </Button>
+          
+          <Button 
+            variant="outline" 
+            onClick={() => navigate('/admin/attendance')}
+          >
+            <FaCalendarCheck className="mr-2 h-4 w-4" />
+            Mark Attendance
+          </Button>
+        </div>
+      </div>
 
-        {loading ? (
-          <div className="flex justify-center items-center h-64">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      {/* Error display */}
+      {error && (
+        <motion.div 
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-destructive/15 border-l-4 border-destructive p-4 mb-6 rounded-md shadow-sm"
+        >
+          <div className="flex items-start">
+            <FaExclamationTriangle className="text-destructive mt-0.5 mr-3 flex-shrink-0" />
+            <div>
+              <h3 className="font-medium text-destructive">Notice</h3>
+              <p className="mt-1 text-destructive/80">{error}</p>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="mt-2 border-destructive/30 text-destructive"
+                onClick={handleRefresh}
+              >
+                <FaSync className="mr-2 h-3 w-3" /> Try Again
+              </Button>
+            </div>
           </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {Object.keys(classStyles).map((classCode) => {
-              const style = classStyles[classCode];
-              const stats = classStats[classCode] || { totalStudents: 0, attendanceRate: 0 };
-              const teachers = teacherAssignments[classCode] || [];
-              
-              return (
-                <div 
-                  key={classCode}
-                  className={`rounded-lg shadow-md overflow-hidden ${style.bg} ${style.border}`}
+        </motion.div>
+      )}
+
+      {/* Summary Stats Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
+        {/* Total Students Card */}
+        <Card className="shadow-md">
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              <span>Total Students</span>
+              <FaUserFriends className="h-5 w-5 text-primary" />
+            </CardTitle>
+            <CardDescription>Across all classes</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-baseline">
+              <span className="text-3xl font-bold text-gray-900 dark:text-white">{totalStudents}</span>
+              <span className="text-gray-500 dark:text-gray-400 mx-1 font-medium"> / </span>
+              <span className="text-xl font-semibold text-green-600 dark:text-green-400">
+                {todayTotalAttendance}
+              </span>
+              <span className="ml-2 text-sm text-muted-foreground">present today</span>
+            </div>
+            
+            <div className="mt-3 w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+              <div 
+                className="h-full rounded-full bg-green-500 dark:bg-green-600"
+                style={{ 
+                  width: totalStudents > 0 
+                    ? `${Math.min(100, (todayTotalAttendance / totalStudents) * 100)}%` 
+                    : '0%' 
+                }}
+              />
+            </div>
+            
+            <Link
+              to="/admin/students"
+              className="text-sm text-blue-600 dark:text-blue-400 hover:underline flex items-center mt-3 group"
+            >
+              View all students
+              <FaArrowRight className="ml-1 opacity-0 group-hover:opacity-100 transform translate-x-0 group-hover:translate-x-1 transition-all" size={10} />
+            </Link>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-md">
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              <span>Average Attendance</span>
+              <FaCalendarCheck className="h-5 w-5 text-primary" />
+            </CardTitle>
+            <CardDescription>Across all active classes</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="text-3xl font-bold text-gray-900 dark:text-white">{averageAttendance}%</div>
+            <Progress value={averageAttendance} className="h-2 mt-3" />
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-md">
+          <CardHeader>
+            <CardTitle className="flex items-center justify-between">
+              <span>Sunday Classes</span>
+              <span className="h-5 w-5 flex items-center justify-center rounded-full bg-green-100 text-green-600">4</span>
+            </CardTitle>
+            <CardDescription>Age-based groups</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Link
+              to="/admin/attendance"
+              className="text-sm text-blue-600 dark:text-blue-400 hover:underline flex items-center mt-2 group"
+            >
+              Mark attendance
+              <FaArrowRight className="ml-1 opacity-0 group-hover:opacity-100 transform translate-x-0 group-hover:translate-x-1 transition-all" size={10} />
+            </Link>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Class Cards */}
+      <h2 className="text-2xl font-semibold mb-6 text-gray-900 dark:text-gray-100">Class Overview</h2>
+      {loading ? (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+          <CardSkeleton />
+          <CardSkeleton />
+          <CardSkeleton />
+          <CardSkeleton />
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+          {Object.keys(classStyles).map((classCode, index) => {
+            const style = classStyles[classCode];
+            const stats = classStats[classCode] || { totalStudents: 0, attendanceRate: 0, todayAttendance: 0 };
+            
+            return (
+              <motion.div
+                key={classCode}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.4, delay: index * 0.1 }}
+              >
+                <Card 
+                  className={`overflow-hidden border-t-4 ${style.borderColor} shadow-sm hover:shadow-md transition-all duration-200`}
                 >
-                  {/* Card Header */}
-                  <div className={`px-4 py-5 ${style.headingBg} border-b border-opacity-60`}>
-                    <div className={`text-xl font-semibold ${style.text}`}>
-                      {style.name} 
-                      <span className="block text-sm mt-1 font-normal">
-                        {style.nameSi}
-                      </span>
-                    </div>
-                    <div className="text-sm mt-1 text-gray-600 dark:text-gray-400">
-                      {style.description}
-                    </div>
-                  </div>
-                  
-                  {/* Card Body */}
-                  <div className="p-4">
-                    {/* Stats */}
-                    <div className="grid grid-cols-2 gap-4 mb-4">
-                      <div className={`p-3 rounded-md ${style.statBg}`}>
-                        <div className="flex items-center justify-between">
-                          <div className={`${style.icon}`}>
-                            <FaUserGraduate size={24} />
+                  <div className={style.cardBg}>
+                    <CardHeader className="pb-1 pt-3 px-3">
+                      <div className="flex justify-between items-center">
+                        <Badge variant="outline" className={`text-xs ${style.badge}`}>
+                          {style.description}
+                        </Badge>
+                        <FaUserGraduate className={`h-4 w-4 ${style.iconColor}`} />
+                      </div>
+                      <CardTitle className="mt-3 flex flex-col">
+                        <span className="text-base text-gray-900 dark:text-white">{style.name}</span>
+                        <span className="text-muted-foreground text-xs font-normal mt-0.5">{style.nameSi}</span>
+                      </CardTitle>
+                    </CardHeader>
+
+                    <CardContent className="pb-1 px-3">
+                      <div className="space-y-3">
+                        {/* Student count with today's attendance section */}
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Students</span>
+                          <Badge variant="outline" className="text-xs bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200">
+                            <span className="font-medium">{stats.totalStudents}</span>
+                            <span className="text-gray-500 dark:text-gray-400 mx-0.5">/</span>
+                            <span className={stats.todayAttendance > 0 ? 'font-medium text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'}>
+                              {stats.todayAttendance}
+                            </span>
+                            <span className="ml-0.5 text-xs text-gray-500 dark:text-gray-400">today</span>
+                          </Badge>
+                        </div>
+                        
+                        {/* Attendance Rate section with progress bar */}
+                        <div className="space-y-1">
+                          <div className="flex justify-between items-center">
+                            <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Attendance Rate</span>
+                            <span className="text-xs font-semibold text-gray-900 dark:text-white">{stats.attendanceRate || 0}%</span>
                           </div>
-                          <div className="text-right">
-                            <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Students</p>
-                            <p className={`text-2xl font-bold ${style.text}`}>
-                              {stats.totalStudents}
-                            </p>
+                          <Progress 
+                            value={stats.attendanceRate || 0} 
+                            className={`h-1 ${style.progressColor}`} 
+                          />
+                        </div>
+                        
+                        {/* Teacher assignment */}
+                        <div className="flex justify-between items-center">
+                          <div className="text-xs">
+                            <div className="text-muted-foreground font-medium">Teacher</div>
+                            <div className="font-semibold text-gray-800 dark:text-gray-200">
+                              {teacherAssignments[classCode]?.name || 'Not Assigned'}
+                            </div>
                           </div>
+                          
+                          {stats.lastClassDate && (
+                            <Badge variant="secondary" className="text-xs">
+                              Last: {new Date(stats.lastClassDate).toLocaleDateString('en-US', {month: '2-digit', day: '2-digit'})}
+                            </Badge>
+                          )}
                         </div>
                       </div>
-                      
-                      <div className={`p-3 rounded-md ${style.statBg}`}>
-                        <div className="flex items-center justify-between">
-                          <div className={`${style.icon}`}>
-                            <FaCalendarCheck size={24} />
-                          </div>
-                          <div className="text-right">
-                            <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Attendance</p>
-                            <p className={`text-2xl font-bold ${style.text}`}>
-                              {stats.attendanceRate}%
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {/* Actions */}
-                    <div className="flex space-x-2">
-                      <button 
+                    </CardContent>
+
+                    <CardFooter className="flex justify-between gap-1 pt-1 pb-3 px-3">
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="flex-1 text-xs"
                         onClick={() => handleViewStudents(classCode)}
-                        className="flex-1 px-4 py-2 bg-gray-800 dark:bg-gray-700 hover:bg-gray-700 dark:hover:bg-gray-600 text-white rounded flex items-center justify-center transition-colors"
                       >
                         Students
-                      </button>
-                      <Link 
-                        to={`/admin/class/${classCode}/attendance`}
-                        className="flex-1 px-4 py-2 bg-blue-600 dark:bg-blue-700 hover:bg-blue-700 dark:hover:bg-blue-600 text-white rounded flex items-center justify-center transition-colors"
+                      </Button>
+                      <Button 
+                        size="sm" 
+                        className={`flex-1 text-white text-xs ${style.buttonBg}`}
+                        onClick={() => handleClassAttendance(classCode)}
                       >
+                        <FaCalendarCheck className="mr-1 h-3 w-3" />
                         Attendance
-                      </Link>
-                    </div>
-                    
-                    {/* Link to details */}
-                    <Link 
-                      to={`/admin/class/${classCode}`}
-                      className="mt-4 w-full text-center inline-block text-sm text-gray-700 dark:text-gray-300 hover:underline"
-                    >
-                      View Details <FaArrowRight className="inline ml-1" size={12} />
-                    </Link>
+                      </Button>
+                    </CardFooter>
                   </div>
-                </div>
-              );
-            })}
-          </div>
-        )}
-
-        {/* Summary Stats */}
-        <div className="mt-12 grid grid-cols-1 md:grid-cols-4 gap-6">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">Total Students</h3>
-            <p className="text-3xl font-bold text-blue-600 dark:text-blue-400">
-              {totalStudents}
-            </p>
-            <div className="mt-4 flex justify-between text-sm text-gray-500">
-              <span>Across all classes</span>
-              <Link to="/admin/students" className="text-blue-600 hover:underline">View all</Link>
-            </div>
-          </div>
-          
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">Average Attendance</h3>
-            <p className="text-3xl font-bold text-green-600 dark:text-green-400">
-              {averageAttendance}%
-            </p>
-            <div className="mt-4 flex justify-between text-sm text-gray-500">
-              <span>Last 4 weeks</span>
-              <Link to="/admin/attendance/analysis" className="text-blue-600 hover:underline">Details</Link>
-            </div>
-          </div>
-          
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">Teachers</h3>
-            <p className="text-3xl font-bold text-purple-600 dark:text-purple-400">
-              {Object.values(teacherAssignments).flat().length}
-            </p>
-            <div className="mt-4 flex justify-between text-sm text-gray-500">
-              <span>Assigned to classes</span>
-              <span className="text-blue-600 hover:underline cursor-pointer">Manage</span>
-            </div>
-          </div>
-          
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">Next Class</h3>
-            <p className="text-xl font-bold text-gray-900 dark:text-white">
-              {new Date(new Date().setDate(new Date().getDate() + (7 - new Date().getDay()))).toLocaleDateString()}
-            </p>
-            <div className="mt-4 flex justify-between text-sm text-gray-500">
-              <span>Sunday</span>
-              <Link to="/admin/attendance" className="text-blue-600 hover:underline">Mark Attendance</Link>
-            </div>
-          </div>
+                </Card>
+              </motion.div>
+            );
+          })}
         </div>
+      )}
 
-        {/* Class Overview Table */}
-        <div className="mt-12">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">
-            Class Overview
-          </h2>
-          
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                <thead className="bg-gray-50 dark:bg-gray-700">
+      {/* Students Modal - Using a larger table layout */}
+      <Dialog open={showStudentsModal} onOpenChange={closeStudentsModal}>
+        <DialogContent className="max-w-6xl p-0 gap-0 w-[95vw]">
+          <DialogHeader className="p-6 border-b">
+            <DialogTitle className="flex items-center gap-2 text-xl font-bold text-gray-900 dark:text-white">
+              {selectedClass && (
+                <>
+                  <span>{classStyles[selectedClass]?.name} Students</span>
+                  <Badge variant="outline" className={selectedClass && classStyles[selectedClass]?.badge}>
+                    {classStats[selectedClass]?.totalStudents || 0} Students
+                  </Badge>
+                </>
+              )}
+            </DialogTitle>
+            <DialogDescription className="text-gray-600 dark:text-gray-300">
+              {selectedClass && classStyles[selectedClass]?.nameSi} - {selectedClass && classStyles[selectedClass]?.description}
+            </DialogDescription>
+          </DialogHeader>
+
+          {/* Modal Body - WIDER table */}
+          <div className="p-6 overflow-x-auto" style={{ maxHeight: "60vh", overflowY: "auto" }}>
+            {loadingStudents ? (
+              <div className="flex flex-col items-center justify-center py-12">
+                <div className="h-10 w-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
+                <p className="text-blue-600 dark:text-blue-300">Loading students...</p>
+              </div>
+            ) : classStudents.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12">
+                <div className="h-16 w-16 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center mb-4">
+                  <FaUserGraduate className="h-8 w-8 text-blue-400" />
+                </div>
+                <p className="text-lg font-bold text-blue-700 dark:text-blue-200">No students found in this class</p>
+                <p className="text-blue-400 mt-1">Try adding students to this class</p>
+              </div>
+            ) : (
+              <table className="w-full border-collapse divide-y divide-blue-200 dark:divide-blue-800 table-fixed">
+                <colgroup>
+                  <col style={{ width: '35%' }} />
+                  <col style={{ width: '30%' }} />
+                  <col style={{ width: '15%' }} />
+                  <col style={{ width: '20%' }} />
+                </colgroup>
+                <thead className="bg-blue-50 dark:bg-blue-900/60">
                   <tr>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                      Class Name
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                      Age Group
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                      Students
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                      Last Class
-                    </th>
-                    <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                      Attendance Rate
-                    </th>
+                    <th className="px-6 py-4 text-left text-sm font-bold text-blue-700 dark:text-blue-200 uppercase tracking-wider">Name</th>
+                    <th className="px-6 py-4 text-left text-sm font-bold text-blue-700 dark:text-blue-200 uppercase tracking-wider">Student ID</th>
+                    <th className="px-6 py-4 text-left text-sm font-bold text-blue-700 dark:text-blue-200 uppercase tracking-wider">Gender</th>
+                    <th className="px-6 py-4 text-right text-sm font-bold text-blue-700 dark:text-blue-200 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                  {Object.keys(classStyles).map((classCode) => {
-                    const style = classStyles[classCode];
-                    const stats = classStats[classCode] || { totalStudents: 0, attendanceRate: 0, lastClassDate: '-' };
-                    
-                    return (
-                      <tr key={classCode} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center">
-                            <div className={`h-8 w-8 rounded-full flex items-center justify-center ${style.headingBg}`}>
-                              <span className={style.text}>{classCode.charAt(0)}</span>
-                            </div>
-                            <div className="ml-4">
-                              <div className="text-sm font-medium text-gray-900 dark:text-white">
-                                {style.name}
-                              </div>
-                              <div className="text-sm text-gray-500 dark:text-gray-400">
-                                {style.nameSi}
-                              </div>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900 dark:text-white">{style.description}</div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900 dark:text-white">{stats.totalStudents}</div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="text-sm text-gray-900 dark:text-white">
-                            {stats.lastClassDate ? new Date(stats.lastClassDate).toLocaleDateString() : '-'}
-                          </div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="flex items-center">
-                            <div className="text-sm text-gray-900 dark:text-white">{stats.attendanceRate}%</div>
-                            <div className="ml-2 w-16 bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                              <div 
-                                className="bg-green-500 h-2 rounded-full" 
-                                style={{ width: `${stats.attendanceRate}%` }}
-                              ></div>
-                            </div>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
+                <tbody className="bg-white dark:bg-blue-950 divide-y divide-blue-100 dark:divide-blue-800">
+                  {classStudents.map((student, idx) => (
+                    <tr
+                      key={student._id}
+                      className={`hover:bg-blue-50 dark:hover:bg-blue-900/40 transition-colors ${idx % 2 === 0 ? 'bg-blue-50/50 dark:bg-blue-950/30' : ''}`}
+                    >
+                      <td className="px-6 py-4 whitespace-nowrap flex items-center gap-3">
+                        <Avatar className="h-10 w-10">
+                          {student.profileImage?.url ? (
+                            <AvatarImage src={student.profileImage.url} alt={safeDisplayName(student.name)} />
+                          ) : (
+                            <AvatarFallback className="bg-blue-400 text-white text-lg font-bold">
+                              {safeDisplayName(student.name).charAt(0) || "?"}
+                            </AvatarFallback>
+                          )}
+                        </Avatar>
+                        <span className="font-semibold text-base text-blue-900 dark:text-blue-100">{safeDisplayName(student.name)}</span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <span className="inline-block bg-blue-100 dark:bg-blue-800 text-blue-800 dark:text-blue-200 rounded px-3 py-1 font-mono text-sm">
+                          {student.studentId}
+                        </span>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        {student.gender === "M" ? (
+                          <span className="inline-block bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100 rounded px-3 py-1 text-sm font-semibold">Male</span>
+                        ) : student.gender === "F" ? (
+                          <span className="inline-block bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-100 rounded px-3 py-1 text-sm font-semibold">Female</span>
+                        ) : (
+                          <span className="inline-block bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200 rounded px-3 py-1 text-sm font-semibold">-</span>
+                        )}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right">
+                        <Button
+                          size="default"
+                          variant="outline"
+                          className="border-blue-400 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900"
+                          onClick={() => navigate(`/admin/students/${student._id}`)}
+                        >
+                          View Profile
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
                 </tbody>
               </table>
-            </div>
+            )}
           </div>
-        </div>
 
-        {/* Students Modal */}
-        {showStudentsModal && selectedClass && (
-          <div className="fixed z-50 inset-0 overflow-y-auto">
-            <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-              {/* Background overlay */}
-              <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" 
-                   onClick={closeStudentsModal}></div>
-              
-              {/* Modal Panel */}
-              <div className="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-3xl sm:w-full">
-                {/* Modal Header with Close Button */}
-                <div className={`px-4 py-5 ${classStyles[selectedClass]?.headingBg} border-b border-gray-200 dark:border-gray-700 flex justify-between items-center`}>
-                  <h3 className={`text-lg font-medium ${classStyles[selectedClass]?.text}`}>
-                    {classStyles[selectedClass]?.name} Students - {classStats[selectedClass]?.totalStudents || 0} Total
-                    <span className="block text-sm mt-1 font-normal">{classStyles[selectedClass]?.nameSi}</span>
-                  </h3>
-                  
-                  {/* Add X icon to close modal */}
-                  <button 
-                    onClick={closeStudentsModal}
-                    className="rounded-full h-8 w-8 flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-700"
-                    title="Close"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
-                
-                {/* Modal Body */}
-                <div className="px-4 py-5">
-                  {loadingStudents ? (
-                    <div className="flex justify-center py-12">
-                      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
-                    </div>
-                  ) : classStudents.length > 0 ? (
-                    <div className="overflow-x-auto">
-                      <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
-                        <thead className="bg-gray-50 dark:bg-gray-700">
-                          <tr>
-                            {/* Add View Details column */}
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                              Actions
-                            </th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                              Student
-                            </th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                              ID
-                            </th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                              Gender
-                            </th>
-                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
-                              Age Group
-                            </th>
-                          </tr>
-                        </thead>
-                        <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-                          {classStudents.map(student => (
-                            <tr key={student._id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
-                              {/* View Details button on the left */}
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <Link 
-                                  to={`/admin/students/${student._id}`}
-                                  className="px-3 py-1 bg-indigo-600 text-white text-xs rounded hover:bg-indigo-700 transition-colors"
-                                >
-                                  View Details
-                                </Link>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap">
-                                <div className="flex items-center">
-                                  <div className="flex-shrink-0 h-10 w-10">
-                                    {student.profileImage ? (
-                                      <img 
-                                        className="h-10 w-10 rounded-full object-cover" 
-                                        src={student.profileImage.url} 
-                                        alt={`${student.name?.en || ''} profile`} 
-                                      />
-                                    ) : (
-                                      <div className="h-10 w-10 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
-                                        <span className="text-gray-500 dark:text-gray-400">
-                                          {student.name?.en ? student.name.en.charAt(0) : '?'}
-                                        </span>
-                                      </div>
-                                    )}
-                                  </div>
-                                  <div className="ml-4">
-                                    <div className="text-sm font-medium text-gray-900 dark:text-white">
-                                      {student.name?.en || ''}
-                                    </div>
-                                    <div className="text-sm text-gray-500 dark:text-gray-400">
-                                      {student.name?.si || ''}
-                                    </div>
-                                  </div>
-                                </div>
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                                {student.studentId}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                                {student.gender === 'M' ? 'Male' : student.gender === 'F' ? 'Female' : ''}
-                              </td>
-                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                                {student.ageGroup}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  ) : (
-                    <div className="text-center py-12 text-gray-500 dark:text-gray-400">
-                      No students found in this class
-                    </div>
-                  )}
-                </div>
-                
-                {/* Modal Footer - modify to remove the redundant close button */}
-                <div className="px-4 py-3 bg-gray-50 dark:bg-gray-700 sm:px-6 flex justify-end">
-                  <Link 
-                    to={`/admin/students?classCode=${selectedClass}`}
-                    className="text-sm text-blue-600 dark:text-blue-400 hover:underline flex items-center"
-                  >
-                    <FaListUl className="mr-2" /> View All Students in This Class
-                  </Link>
-                  {/* Removed the redundant Close button here */}
-                </div>
-              </div>
+          {/* Modal Footer */}
+          <DialogFooter className="p-5 border-t flex justify-between items-center">
+            <div className="text-sm text-muted-foreground">
+              {classStudents.length} student{classStudents.length !== 1 ? 's' : ''} in {selectedClass && classStyles[selectedClass]?.name}
             </div>
-          </div>
-        )}
-      </div>
+            
+            <Button 
+              onClick={() => selectedClass && handleViewAllStudents(selectedClass)}
+              variant="default"
+              className="gap-2"
+              size="default"
+            >
+              View All Students in Class
+              <FaArrowRight className="h-3.5 w-3.5" />
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

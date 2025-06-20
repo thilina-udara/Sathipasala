@@ -1,6 +1,6 @@
 // D:\Sathipasala\sathipasala-management-system\frontend\tailwind.config.js
 /** @type {import('tailwindcss').Config} */
-module.exports = {
+export default {
   darkMode: ["class"],
   content: [
     './src/**/*.{js,jsx,ts,tsx}',
@@ -68,6 +68,9 @@ module.exports = {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
       },
+      transitionDuration: {
+        '4000': '4000ms',
+      }
     },
   },
   plugins: [

@@ -52,7 +52,7 @@ textarea,
 
 @keyframes floating {
   0% { transform: translateY(0px); }
-  50% { transform: translateY(-10px); }
+  50% { transform: translateY(-15px); }
   100% { transform: translateY(0px); }
 }
 
@@ -92,8 +92,6 @@ textarea,
   animation: shrink 4s ease-in-out forwards;
 }
 
-/* Add these at the end of your index.css file */
-
 /* Specific CSS for the Breathing Buddies game */
 @keyframes breathe-in {
   from { transform: scale(1); }
@@ -104,22 +102,6 @@ textarea,
   from { transform: scale(1.5); }
   to { transform: scale(1); }
 }
-
-@keyframes floating {
-  0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-15px); }
-}
-
-.animate-float {
-  animation: floating 5s ease-in-out infinite;
-}
-
-/* Make sure the duration matches the JS timeout values */
-.duration-[4000ms] {
-  transition-duration: 4000ms;
-}
-
-/* We're using a 10s total cycle: 4s inhale, 2s hold, 4s exhale */
 
 /* Animation keyframes for the Attendance dashboard */
 @keyframes fadeIn {
@@ -136,8 +118,6 @@ textarea,
   from { opacity: 0; transform: translateY(10px); }
   to { opacity: 1; transform: translateY(0); }
 }
-
-
 
 @layer base {
   :root {
@@ -195,13 +175,22 @@ textarea,
   }
 }
 
-
-
 @layer base {
   * {
     @apply border-border;
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+/* Breathing duration utilities */
+.breathing-duration {
+  transition-duration: 4000ms;
+}
+
+@layer utilities {
+  .custom-duration-4000 {
+    transition-duration: 4000ms;
   }
 }

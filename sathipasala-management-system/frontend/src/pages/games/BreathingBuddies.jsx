@@ -213,7 +213,7 @@ const BreathingBuddies = () => {
         {/* Breathing circle */}
         <div className="flex flex-col items-center relative">
           <div 
-            className={`relative flex items-center justify-center rounded-full transition-transform duration-[4000ms] 
+            className={`relative flex items-center justify-center rounded-full transition-transform breathing-duration
               ${breathingState === 'inhale' ? 'scale-150' : 
                 breathingState === 'exhale' ? 'scale-100' : 
                 breathingState === 'hold' ? 'scale-150' : 'scale-100'} 
