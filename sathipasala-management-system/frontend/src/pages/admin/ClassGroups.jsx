@@ -673,9 +673,9 @@ const ClassGroups = () => {
         </div>
       )}
 
-      {/* Students Modal - Using a larger table layout */}
+      {/* Students Modal - FULL WIDTH with alternating row colors */}
       <Dialog open={showStudentsModal} onOpenChange={closeStudentsModal}>
-        <DialogContent className="max-w-6xl p-0 gap-0 w-[95vw]">
+        <DialogContent className="max-w-[95%] p-0 gap-0 w-[98vw] md:w-[95vw]">
           <DialogHeader className="p-6 border-b">
             <DialogTitle className="flex items-center gap-2 text-xl font-bold text-gray-900 dark:text-white">
               {selectedClass && (
@@ -692,8 +692,8 @@ const ClassGroups = () => {
             </DialogDescription>
           </DialogHeader>
 
-          {/* Modal Body - WIDER table */}
-          <div className="p-6 overflow-x-auto" style={{ maxHeight: "60vh", overflowY: "auto" }}>
+          {/* Modal Body - WIDER table with alternating row colors */}
+          <div className="p-6 overflow-x-auto" style={{ maxHeight: "65vh", overflowY: "auto" }}>
             {loadingStudents ? (
               <div className="flex flex-col items-center justify-center py-12">
                 <div className="h-10 w-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
@@ -708,51 +708,78 @@ const ClassGroups = () => {
                 <p className="text-blue-400 mt-1">Try adding students to this class</p>
               </div>
             ) : (
-              <table className="w-full border-collapse divide-y divide-blue-200 dark:divide-blue-800 table-fixed">
+              <table className="w-full border-collapse table-fixed">
                 <colgroup>
-                  <col style={{ width: '35%' }} />
-                  <col style={{ width: '30%' }} />
+                  <col style={{ width: '40%' }} />
+                  <col style={{ width: '25%' }} />
                   <col style={{ width: '15%' }} />
                   <col style={{ width: '20%' }} />
                 </colgroup>
-                <thead className="bg-blue-50 dark:bg-blue-900/60">
-                  <tr>
-                    <th className="px-6 py-4 text-left text-sm font-bold text-blue-700 dark:text-blue-200 uppercase tracking-wider">Name</th>
-                    <th className="px-6 py-4 text-left text-sm font-bold text-blue-700 dark:text-blue-200 uppercase tracking-wider">Student ID</th>
-                    <th className="px-6 py-4 text-left text-sm font-bold text-blue-700 dark:text-blue-200 uppercase tracking-wider">Gender</th>
-                    <th className="px-6 py-4 text-right text-sm font-bold text-blue-700 dark:text-blue-200 uppercase tracking-wider">Actions</th>
+                <thead>
+                  <tr className="bg-gray-100 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+                    <th className="px-6 py-4 text-left text-sm font-bold text-gray-700 dark:text-gray-200 uppercase tracking-wider">Name</th>
+                    <th className="px-6 py-4 text-left text-sm font-bold text-gray-700 dark:text-gray-200 uppercase tracking-wider">Student ID</th>
+                    <th className="px-6 py-4 text-left text-sm font-bold text-gray-700 dark:text-gray-200 uppercase tracking-wider">Gender</th>
+                    <th className="px-6 py-4 text-right text-sm font-bold text-gray-700 dark:text-gray-200 uppercase tracking-wider">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="bg-white dark:bg-blue-950 divide-y divide-blue-100 dark:divide-blue-800">
+                <tbody>
                   {classStudents.map((student, idx) => (
                     <tr
                       key={student._id}
-                      className={`hover:bg-blue-50 dark:hover:bg-blue-900/40 transition-colors ${idx % 2 === 0 ? 'bg-blue-50/50 dark:bg-blue-950/30' : ''}`}
+                      className={`border-b border-gray-100 dark:border-gray-800 ${
+                        idx % 2 === 0 
+                        ? 'bg-white dark:bg-gray-900' 
+                        : 'bg-gray-50 dark:bg-gray-850'
+                      } hover:bg-blue-50 dark:hover:bg-blue-900/20`}
                     >
-                      <td className="px-6 py-4 whitespace-nowrap flex items-center gap-3">
-                        <Avatar className="h-10 w-10">
-                          {student.profileImage?.url ? (
-                            <AvatarImage src={student.profileImage.url} alt={safeDisplayName(student.name)} />
-                          ) : (
-                            <AvatarFallback className="bg-blue-400 text-white text-lg font-bold">
-                              {safeDisplayName(student.name).charAt(0) || "?"}
-                            </AvatarFallback>
-                          )}
-                        </Avatar>
-                        <span className="font-semibold text-base text-blue-900 dark:text-blue-100">{safeDisplayName(student.name)}</span>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <div className="flex items-center">
+                          <div className="flex-shrink-0 h-12 w-12">
+                            {student.profileImage?.url ? (
+                              <img 
+                                className="h-12 w-12 rounded-full object-cover border-2 border-white dark:border-gray-700 shadow-sm" 
+                                src={student.profileImage.url} 
+                                alt={safeDisplayName(student.name)}
+                              />
+                            ) : (
+                              <div className="h-12 w-12 rounded-full bg-blue-100 dark:bg-blue-900 border-2 border-white dark:border-gray-700 flex items-center justify-center shadow-sm">
+                                <span className="text-lg font-bold text-blue-500 dark:text-blue-300">
+                                  {safeDisplayName(student.name).charAt(0) || "?"}
+                                </span>
+                              </div>
+                            )}
+                          </div>
+                          <div className="ml-4">
+                            <div className="text-base font-semibold text-gray-900 dark:text-white">
+                              {safeDisplayName(student.name)}
+                            </div>
+                            <div className="text-sm text-gray-500 dark:text-gray-400">
+                              {typeof student.name === 'object' && student.name?.si ? student.name.si : ''}
+                            </div>
+                          </div>
+                        </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="inline-block bg-blue-100 dark:bg-blue-800 text-blue-800 dark:text-blue-200 rounded px-3 py-1 font-mono text-sm">
+                        <span className="inline-block bg-blue-50 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 rounded px-3 py-1 text-sm font-mono border border-blue-100 dark:border-blue-800">
                           {student.studentId}
                         </span>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
                         {student.gender === "M" ? (
-                          <span className="inline-block bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100 rounded px-3 py-1 text-sm font-semibold">Male</span>
+                          <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300">
+                            <span className="h-2 w-2 rounded-full bg-green-500 mr-2"></span>
+                            Male
+                          </span>
                         ) : student.gender === "F" ? (
-                          <span className="inline-block bg-pink-100 text-pink-800 dark:bg-pink-900 dark:text-pink-100 rounded px-3 py-1 text-sm font-semibold">Female</span>
+                          <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-pink-100 text-pink-800 dark:bg-pink-900/40 dark:text-pink-300">
+                            <span className="h-2 w-2 rounded-full bg-pink-500 mr-2"></span>
+                            Female
+                          </span>
                         ) : (
-                          <span className="inline-block bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200 rounded px-3 py-1 text-sm font-semibold">-</span>
+                          <span className="inline-block px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300">
+                            Unknown
+                          </span>
                         )}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right">
