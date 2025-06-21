@@ -272,8 +272,29 @@ const AttendanceAnalysis = () => {
       });
       
       if (response.data.success) {
-        console.log(`Loaded attendance records for student ${studentId}`);
-        setStudentAttendance(response.data.data || []);
+        console.log(`Loaded ${response.data.data?.length || 0} attendance records for student ${studentId}`);
+        
+        // Process the attendance data to ensure flower counts are correct
+        const processedAttendance = response.data.data.map(record => ({
+          ...record,
+          // Ensure flowerOffering structure is consistent
+          flowerOffering: {
+            brought: record.broughtFlowers || record.flowerOffering?.brought || false,
+            type: record.broughtFlowers || record.flowerOffering?.brought 
+              ? (record.flowerOffering?.type || record.flowerType || 'Mixed Flowers')
+              : null
+          },
+          // Ensure backward compatibility
+          broughtFlowers: record.broughtFlowers || record.flowerOffering?.brought || false
+        }));
+        
+        console.log('Processed attendance data:', {
+          total: processedAttendance.length,
+          withFlowers: processedAttendance.filter(r => r.flowerOffering?.brought || r.broughtFlowers).length,
+          sample: processedAttendance[0]
+        });
+        
+        setStudentAttendance(processedAttendance);
         return;
       } else {
         throw new Error('API returned unsuccessful response');
@@ -281,28 +302,36 @@ const AttendanceAnalysis = () => {
     } catch (error) {
       console.warn('Student attendance API call failed, using mock data:', error.message);
       
-      // Generate realistic mock student attendance
+      // Generate realistic mock student attendance with proper flower data
       const mockAttendance = [];
       const startDate = new Date(filters.startDate);
       const endDate = new Date(filters.endDate);
       
       for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
-        if (d.getDay() === 0) {
+        if (d.getDay() === 0) { // Sunday only
           const isPresent = Math.random() > 0.15;
           const status = isPresent ? 'present' : 'absent';
-          const broughtFlowers = isPresent && Math.random() > 0.4;
+          const broughtFlowers = isPresent && Math.random() > 0.4; // 60% chance of bringing flowers when present
           
           mockAttendance.push({
+            _id: `mock-${d.getTime()}`,
             date: new Date(d).toISOString().split('T')[0],
             status,
+            broughtFlowers,
             flowerOffering: {
               brought: broughtFlowers,
               type: broughtFlowers ? ['Rose', 'Lotus', 'Jasmine', 'Marigold', 'Hibiscus'][Math.floor(Math.random() * 5)] : null
             },
-            reason: status === 'absent' ? ['Sick', 'Family event', 'Travel', 'Weather'][Math.floor(Math.random() * 4)] : ''
+            reason: status === 'absent' ? ['Sick', 'Family event', 'Travel', 'Weather'][Math.floor(Math.random() * 4)] : '',
+            notes: status === 'absent' ? ['Fever', 'Wedding', 'Out of town', 'Heavy rain'][Math.floor(Math.random() * 4)] : ''
           });
         }
       }
+      
+      console.log('Generated mock attendance with flowers:', {
+        total: mockAttendance.length,
+        withFlowers: mockAttendance.filter(r => r.flowerOffering?.brought).length
+      });
       
       setStudentAttendance(mockAttendance);
     } finally {
@@ -1025,7 +1054,9 @@ const AttendanceAnalysis = () => {
                             </div>
                             <div>
                               <p className="text-2xl font-bold text-pink-600">
-                                {studentAttendance.filter(a => a.flowerOffering?.brought).length}
+                                {studentAttendance.filter(a => 
+                                  a.flowerOffering?.brought || a.broughtFlowers
+                                ).length}
                               </p>
                               <p className="text-sm text-muted-foreground">Flowers</p>
                             </div>
@@ -1067,7 +1098,7 @@ const AttendanceAnalysis = () => {
                                   </TableRow>
                                 ) : (
                                   studentAttendance.map((record, index) => (
-                                    <TableRow key={index}>
+                                    <TableRow key={record._id || index}>
                                       <TableCell className="font-medium">
                                         {new Date(record.date).toLocaleDateString()}
                                       </TableCell>
@@ -1085,20 +1116,28 @@ const AttendanceAnalysis = () => {
                                               <span className="text-red-600 font-medium">Absent</span>
                                             </>
                                           )}
+                                          {record.status === 'late' && (
+                                            <>
+                                              <FaClock className="h-4 w-4 text-amber-600" />
+                                              <span className="text-amber-600 font-medium">Late</span>
+                                            </>
+                                          )}
                                         </div>
                                       </TableCell>
                                       <TableCell>
-                                        {record.flowerOffering?.brought ? (
+                                        {(record.flowerOffering?.brought || record.broughtFlowers) ? (
                                           <div className="flex items-center gap-2">
                                             <FaLeaf className="h-4 w-4 text-pink-600" />
-                                            <span className="text-pink-600 font-medium">{record.flowerOffering.type}</span>
+                                            <span className="text-pink-600 font-medium">
+                                              {record.flowerOffering?.type || 'Yes'}
+                                            </span>
                                           </div>
                                         ) : (
                                           <FaMinus className="h-4 w-4 text-gray-400" />
                                         )}
                                       </TableCell>
                                       <TableCell className="text-sm text-muted-foreground">
-                                        {record.reason || '-'}
+                                        {record.reason || record.notes || '-'}
                                       </TableCell>
                                     </TableRow>
                                   ))

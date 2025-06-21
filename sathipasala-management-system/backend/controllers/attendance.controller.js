@@ -225,6 +225,8 @@ exports.getStudentAttendance = asyncHandler(async (req, res, next) => {
   // Get date range if provided in query
   const { startDate, endDate } = req.query;
   
+  console.log(`Fetching attendance for student ${id}, dateRange: ${startDate} to ${endDate}`);
+  
   // Check if student exists
   const student = await Student.findById(id);
   if (!student) {
@@ -236,19 +238,47 @@ exports.getStudentAttendance = asyncHandler(async (req, res, next) => {
   
   // Add date range if provided
   if (startDate && endDate) {
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    // Set time to include the entire end date
+    end.setUTCHours(23, 59, 59, 999);
+    
     query.date = {
-      $gte: new Date(startDate),
-      $lte: new Date(endDate)
+      $gte: start,
+      $lte: end
     };
   }
   
-  // Get attendance records
-  const attendanceRecords = await Attendance.find(query).sort({ date: -1 });
+  console.log('Student attendance query:', JSON.stringify(query));
+  
+  // Get attendance records with proper sorting
+  const attendanceRecords = await Attendance.find(query)
+    .sort({ date: -1 })
+    .lean(); // Use lean() for better performance
+  
+  // Transform the data to ensure flower offering information is properly structured
+  const transformedRecords = attendanceRecords.map(record => ({
+    _id: record._id,
+    date: record.date,
+    status: record.status,
+    broughtFlowers: record.broughtFlowers || false, // Ensure boolean value
+    notes: record.notes || '',
+    reason: record.notes || '', // Use notes as reason for backward compatibility
+    flowerOffering: {
+      brought: record.broughtFlowers || false,
+      type: record.broughtFlowers ? (record.flowerType || 'Mixed Flowers') : null
+    },
+    createdAt: record.createdAt,
+    updatedAt: record.updatedAt
+  }));
+  
+  console.log(`Found ${transformedRecords.length} attendance records for student ${id}`);
+  console.log('Sample record:', transformedRecords[0]);
   
   res.status(200).json({
     success: true,
-    count: attendanceRecords.length,
-    data: attendanceRecords
+    count: transformedRecords.length,
+    data: transformedRecords
   });
 });
 

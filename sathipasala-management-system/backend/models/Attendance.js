@@ -20,6 +20,10 @@ const AttendanceSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  flowerType: {
+    type: String,
+    default: ''
+  },
   notes: {
     type: String,
     default: ''
@@ -36,6 +40,17 @@ const AttendanceSchema = new mongoose.Schema({
   // Disable automatic index creation to prevent conflicts
   autoIndex: false
 });
+
+// Virtual for flower offering
+AttendanceSchema.virtual('flowerOffering').get(function() {
+  return {
+    brought: this.broughtFlowers,
+    type: this.broughtFlowers ? (this.flowerType || 'Mixed Flowers') : null
+  };
+});
+
+// Ensure virtual fields are serialized
+AttendanceSchema.set('toJSON', { virtuals: true });
 
 // Create a single compound index on student and date
 // This will ensure each student can only have one attendance record per day
