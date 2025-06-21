@@ -1,757 +1,1135 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { useTranslation } from 'react-i18next';
-import axios from 'axios';
+import React, { useState, useEffect, useCallback } from "react";
+import { useTranslation } from "react-i18next";
+import axios from "axios";
+import { motion, AnimatePresence } from "framer-motion";
 import { 
-  LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, 
-  CartesianGrid, BarChart, Bar, PieChart, Pie, Cell, Legend 
+  PieChart, Pie, Cell, BarChart, Bar, XAxis, YAxis, CartesianGrid, 
+  Tooltip, Legend, ResponsiveContainer, LineChart, Line, Area, AreaChart 
 } from 'recharts';
 
-const COLORS = ['#10b981', '#ef4444', '#f59e42', '#6366f1'];
+// Import ShadCN components
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Calendar } from "@/components/ui/calendar";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-// Class labels in both languages
-const CLASS_LABELS = {
-  ADH: { en: "Adhiṭṭhāna", si: "අධිඨාන" },
-  MET: { en: "Mettā", si: "මෙත්තා" },
-  KHA: { en: "Khanti", si: "ඛන්ති" },
-  NEK: { en: "Nekkhamma", si: "නෙක්කම්ම" }
+// Icons
+import { 
+  FaCalendarAlt, FaUsers, FaChartLine, FaSearch, FaDownload, 
+  FaFilter, FaCheckCircle, FaTimesCircle, FaClock, FaLeaf,
+  FaMinus, FaEye, FaSync
+} from 'react-icons/fa';
+
+// Class configurations
+const CLASS_CONFIGS = {
+  ADH: { 
+    name: 'Adhiṭṭhāna', 
+    nameSi: 'අධිඨාන', 
+    color: '#6b7280',
+    bgColor: 'bg-slate-50 dark:bg-slate-900/50',
+    description: '3-6 years'
+  },
+  MET: { 
+    name: 'Mettā', 
+    nameSi: 'මෙත්තා', 
+    color: '#f59e0b',
+    bgColor: 'bg-amber-50 dark:bg-amber-900/50',
+    description: '7-10 years'
+  },
+  KHA: { 
+    name: 'Khanti', 
+    nameSi: 'ඛන්ති', 
+    color: '#eab308',
+    bgColor: 'bg-yellow-50 dark:bg-yellow-900/50',
+    description: '11-13 years'
+  },
+  NEK: { 
+    name: 'Nekkhamma', 
+    nameSi: 'නෙක්කම්ම', 
+    color: '#3b82f6',
+    bgColor: 'bg-blue-50 dark:bg-blue-900/50',
+    description: '14+ years'
+  }
+};
+
+// Chart colors
+const CHART_COLORS = {
+  present: '#10b981',
+  absent: '#ef4444', 
+  flowers: '#ec4899'
 };
 
 const AttendanceAnalysis = () => {
-  const { i18n } = useTranslation();
-  const currentLang = i18n.language || 'en';
+  const { t } = useTranslation();
   
-  // Simple direct labels based on language
-  const L = {
-    analysis: currentLang === 'si' ? "පැමිණීමේ විශ්ලේෂණය" : "Attendance Analysis",
-    exportCSV: currentLang === 'si' ? "CSV අපනයනය කරන්න" : "Export CSV",
-    month: currentLang === 'si' ? "මාසය" : "Month",
-    year: currentLang === 'si' ? "වර්ෂය" : "Year",
-    class: currentLang === 'si' ? "පන්තිය" : "Class",
-    search: currentLang === 'si' ? "සොයන්න" : "Search",
-    searchPlaceholder: currentLang === 'si' ? "නම හෝ අංකය සොයන්න" : "Search by name or ID",
-    all: currentLang === 'si' ? "සියල්ල" : "All",
-    selectStudent: currentLang === 'si' ? "ශිෂ්‍යයා තෝරන්න" : "Select Student",
-    students: currentLang === 'si' ? "සිසුන්" : "students",
-    attendanceRate: currentLang === 'si' ? "පැමිණීමේ අනුපාතය" : "Attendance Rate",
-    trend: currentLang === 'si' ? "පැමිණීමේ ප්‍රවණතාව" : "Attendance Trend",
-    dailyBreakdown: currentLang === 'si' ? "දෛනික වාර්තාව" : "Daily Breakdown",
-    present: currentLang === 'si' ? "පැමිණ සිටි" : "Present",
-    absent: currentLang === 'si' ? "පැමිණ නොසිටි" : "Absent",
-    late: currentLang === 'si' ? "ප්‍රමාද වූ" : "Late",
-    sundays: currentLang === 'si' ? "ඉරිදා දිනයන්" : "Sundays",
-    poya: currentLang === 'si' ? "පොහෝය දින" : "Poya Days",
-    flower: currentLang === 'si' ? "මල් පූජා" : "Flower Offerings",
-    poyaDay: currentLang === 'si' ? "පොහෝය දිනය" : "Poya Day",
-    sunday: currentLang === 'si' ? "ඉරිදා" : "Sunday",
-    noSundaysInMonth: currentLang === 'si' ? "මෙම මාසයේ ඉරිදා දින නොමැත" : "No Sundays in this month",
-    flowerParticipation: currentLang === 'si' ? "මල් පූජා සහභාගිත්වය" : "Flower Offering Participation",
-    noData: currentLang === 'si' ? "දත්ත නොමැත" : "No data available",
-    student: currentLang === 'si' ? "සිසුවා" : "Student",
-    flowerType: currentLang === 'si' ? "මල් වර්ගය" : "Flower Type",
-    status: currentLang === 'si' ? "තත්ත්වය" : "Status",
-    brought: currentLang === 'si' ? "ගෙනා" : "Brought",
-    notBrought: currentLang === 'si' ? "ගෙන ආවේ නැත" : "Not Brought",
-    individualAnalysis: currentLang === 'si' ? "තනි සිසු විශ්ලේෂණය" : "Individual Student Analysis",
-    date: currentLang === 'si' ? "දිනය" : "Date",
-    errorFetch: currentLang === 'si' ? "දත්ත ලබා ගැනීමේ දෝෂයකි" : "Error fetching data"
-  };
-
+  // State management
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [attendanceData, setAttendanceData] = useState([]);
+  const [refreshing, setRefreshing] = useState(false);
   const [students, setStudents] = useState([]);
-  const [summary, setSummary] = useState({
-    totalStudents: 0,
-    averageAttendance: 0,
-    highestAttendanceDay: '',
-    lowestAttendanceDay: '',
-  });
-  const [flowerData, setFlowerData] = useState([]);
-  const [selectedStudent, setSelectedStudent] = useState('');
+  const [attendanceData, setAttendanceData] = useState([]);
+  const [classAnalysis, setClassAnalysis] = useState({});
+  const [selectedStudent, setSelectedStudent] = useState(null);
+  const [studentAttendance, setStudentAttendance] = useState([]);
+  const [activeTab, setActiveTab] = useState("overview");
+  
+  // Filters
   const [filters, setFilters] = useState({
+    classCode: "",
+    startDate: new Date(new Date().getFullYear(), 0, 1),
+    endDate: new Date(),
+    searchTerm: "",
     month: new Date().getMonth() + 1,
-    year: new Date().getFullYear(),
-    classCode: '',
-    searchTerm: '',
-    studentId: '',
-    eventType: ''
+    year: new Date().getFullYear()
+  });
+  
+  // Loading states
+  const [studentLoading, setStudentLoading] = useState(false);
+  const [exportLoading, setExportLoading] = useState(false);
+  const [latestUpdateDate, setLatestUpdateDate] = useState(null);
+  const [trendsPeriod, setTrendsPeriod] = useState('');
+
+  // Helper function for API calls
+  const getAuthHeaders = () => ({
+    Authorization: `Bearer ${localStorage.getItem('token')}`
   });
 
-  // Get month names based on current language
-  const getMonthNames = () => {
-    const months = [];
-    for (let i = 0; i < 12; i++) {
-      const date = new Date(2022, i, 1);
-      months.push(date.toLocaleString(currentLang, { month: 'long' }));
-    }
-    return months;
+  // Generate mock students for development
+  const generateMockStudents = () => {
+    const mockStudents = [];
+    Object.keys(CLASS_CONFIGS).forEach((classCode, classIndex) => {
+      for (let i = 1; i <= 25; i++) {
+        mockStudents.push({
+          _id: `mock-${classCode}-${i}`,
+          studentId: `SP2024${classCode}${String(i).padStart(3, '0')}`,
+          name: {
+            en: `${CLASS_CONFIGS[classCode].name} Student ${i}`,
+            si: `${CLASS_CONFIGS[classCode].nameSi} සිසුවා ${i}`
+          },
+          classCode,
+          profileImage: Math.random() > 0.3 ? {
+            url: `https://i.pravatar.cc/150?img=${(classIndex * 25) + i}`
+          } : null
+        });
+      }
+    });
+    return mockStudents;
   };
 
-  // Fetch students data
+  // Fetch students data with real API integration
   const fetchStudents = useCallback(async () => {
     try {
-      setLoading(true);
+      console.log('Fetching students from API...');
       const response = await axios.get('/api/students', {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`
-        },
+        headers: getAuthHeaders(),
         params: {
-          classYear: filters.year,
-          classCode: filters.classCode || undefined
+          classCode: filters.classCode || undefined,
+          limit: 500
         }
       });
-
-      if (response.data?.data) {
-        setStudents(response.data.data);
-        return response.data.data;
+      
+      if (response.data.success) {
+        console.log(`Loaded ${response.data.data?.length || 0} students from API`);
+        setStudents(response.data.data || []);
+        return response.data.data || [];
       } else {
-        // Generate mock data for development
-        const mockStudents = generateMockStudents();
-        setStudents(mockStudents);
-        return mockStudents;
+        throw new Error('API returned unsuccessful response');
       }
     } catch (error) {
-      console.error("Error fetching students:", error);
-      // Fall back to mock data
+      console.warn('API call failed, using mock data:', error.message);
       const mockStudents = generateMockStudents();
       setStudents(mockStudents);
       return mockStudents;
     }
-  }, [filters.year, filters.classCode]);
+  }, [filters.classCode]);
 
-  // Generate mock students for development
-  const generateMockStudents = () => {
-    const classMapping = {
-      'ADH': '3-6',
-      'MET': '7-10',
-      'KHA': '11-13',
-      'NEK': '14+'
-    };
-    
-    return Array.from({ length: 40 }, (_, i) => {
-      const id = i + 1;
-      const classCode = ['ADH', 'MET', 'KHA', 'NEK'][Math.floor(Math.random() * 4)];
-      
-      return {
-        _id: `mock-${id}`,
-        studentId: `SATHI-${filters.year}-${classCode}-${id.toString().padStart(3, '0')}`,
-        name: {
-          en: `Student ${id}`,
-          si: `ශිෂ්‍ය ${id}`
-        },
-        classYear: filters.year,
-        classCode,
-        ageGroup: classMapping[classCode]
-      };
-    });
-  };
-
-  // Generate mock attendance data
-  const generateMockData = useCallback((studentsList) => {
-    if (!studentsList || !studentsList.length) return [];
-
-    // Get all Sundays in the specified month
-    const sundays = getSundaysInMonth(filters.month, filters.year);
-    const attendanceRecords = [];
-    
-    // Mock data for each Sunday
-    sundays.forEach((sunday, index) => {
-      const date = sunday.toISOString().split('T')[0];
-      const isPoya = index === 1 || index === 3; // 2nd and 4th Sunday as mock Poya days
-      const isFlowerDay = index === 0; // 1st Sunday as mock Flower day
-      
-      // Random attendance with better probability for presence (75-90%)
-      const attendanceRate = 80 + Math.floor(Math.random() * 15) - Math.floor(Math.random() * 10);
-      const total = studentsList.length;
-      const present = Math.round((attendanceRate / 100) * total);
-      const late = Math.round(Math.random() * (total - present) * 0.3);
-      const absent = total - present - late;
-      
-      attendanceRecords.push({
-        date,
-        total,
-        present,
-        absent,
-        late,
-        attendanceRate,
-        isPoya,
-        isFlowerDay
-      });
-      
-      // Add flower offering data for flower days
-      if (isFlowerDay) {
-        const participants = studentsList
-          .filter(() => Math.random() > 0.3) // 70% participation rate
-          .map(student => ({
-            studentId: student.studentId,
-            name: student.name[currentLang],
-            flowerType: ['Rose', 'Lotus', 'Jasmine', 'Marigold', 'Sunflower'][Math.floor(Math.random() * 5)],
-            brought: Math.random() > 0.2 // 80% actually brought flowers
-          }));
-        
-        setFlowerData(prev => [
-          ...prev,
-          {
-            date,
-            participation: participants
-          }
-        ]);
-      }
-    });
-    
-    return attendanceRecords;
-  }, [filters.month, filters.year, currentLang]);
-
-  // Fetch or generate attendance data
-  const fetchAttendance = useCallback(async (studentsList) => {
+  // FIXED: Fetch class-wise analysis with real API integration
+  const fetchClassAnalysis = useCallback(async () => {
     try {
-      const token = localStorage.getItem('token');
-      if (!token) {
-        throw new Error('Authentication token not found');
-      }
-      
-      console.log(`Fetching attendance data for year: ${filters.year}, month: ${filters.month}`);
-      
-      const response = await axios.get('/api/attendance/report', {
-        headers: {
-          Authorization: `Bearer ${token}`
-        },
+      console.log('Fetching latest class analysis from API...');
+      const response = await axios.get('/api/stats/latest-class-analysis', {
+        headers: getAuthHeaders(),
         params: {
-          year: filters.year,
-          month: filters.month,
           classCode: filters.classCode || undefined
         }
       });
       
-      console.log("Attendance response:", response.data);
-      if (response.data?.data) {
-        setAttendanceData(response.data.data);
-        // Calculate summary stats
-        if (response.data.data.length > 0) {
-          const avgAttendance = response.data.data.reduce((sum, day) => sum + day.attendanceRate, 0) / response.data.data.length;
-          const highest = response.data.data.reduce((max, day) => day.attendanceRate > max.rate ? { rate: day.attendanceRate, date: day.date } : max, { rate: 0, date: '' });
-          const lowest = response.data.data.reduce((min, day) => day.attendanceRate < min.rate ? { rate: day.attendanceRate, date: day.date } : min, { rate: 100, date: '' });
-          
-          setSummary({
-            totalStudents: studentsList?.length || 0,
-            averageAttendance: avgAttendance.toFixed(1),
-            highestAttendanceDay: highest.date,
-            lowestAttendanceDay: lowest.date
-          });
-        }
+      if (response.data.success) {
+        console.log('Loaded latest class analysis from API:', response.data.data);
+        setClassAnalysis(response.data.data);
         
-        // Get flower data
-        const flowerDays = response.data.data.filter(day => day.flowerOfferings > 0);
-        if (flowerDays.length > 0) {
-          setFlowerData(flowerDays.map(day => ({
-            date: day.date,
-            participation: day.students.filter(s => s.flowerOffering?.brought)
-          })));
+        // Store the latest date for display
+        if (response.data.latestDate) {
+          setLatestUpdateDate(response.data.latestDate);
         }
-        
+        return;
       } else {
-        // Use mock data
-        const mockData = generateMockData(studentsList);
-        setAttendanceData(mockData);
-        
-        if (mockData.length > 0) {
-          const avgAttendance = mockData.reduce((sum, day) => sum + day.attendanceRate, 0) / mockData.length;
-          const highest = mockData.reduce((max, day) => day.attendanceRate > max.rate ? { rate: day.attendanceRate, date: day.date } : max, { rate: 0, date: '' });
-          const lowest = mockData.reduce((min, day) => day.attendanceRate < min.rate ? { rate: day.attendanceRate, date: day.date } : min, { rate: 100, date: '' });
-          
-          setSummary({
-            totalStudents: studentsList?.length || 0,
-            averageAttendance: avgAttendance.toFixed(1),
-            highestAttendanceDay: highest.date,
-            lowestAttendanceDay: lowest.date
-          });
-        }
+        throw new Error('API returned unsuccessful response');
       }
     } catch (error) {
-      console.error("Error fetching attendance data:", error);
+      console.warn('Latest class analysis API call failed, using mock data:', error.message);
       
-      // Use mock data
-      const mockData = generateMockData(studentsList);
-      setAttendanceData(mockData);
+      // Generate mock data for the latest day
+      const mockAnalysis = {};
+      const today = new Date().toISOString().split('T')[0];
       
-      if (mockData.length > 0) {
-        const avgAttendance = mockData.reduce((sum, day) => sum + day.attendanceRate, 0) / mockData.length;
-        setSummary({
-          totalStudents: studentsList?.length || 0,
-          averageAttendance: avgAttendance.toFixed(1),
-          highestAttendanceDay: mockData[0]?.date || '',
-          lowestAttendanceDay: mockData[mockData.length - 1]?.date || ''
-        });
-      }
-    } finally {
-      setLoading(false);
+      Object.keys(CLASS_CONFIGS).forEach(classCode => {
+        const classStudents = students.filter(s => s.classCode === classCode);
+        const totalStudents = classStudents.length;
+        
+        // Simulate today's attendance
+        const presentCount = Math.floor(totalStudents * (0.75 + Math.random() * 0.2)); // 75-95% attendance
+        const absentCount = totalStudents - presentCount;
+        const flowerCount = Math.floor(presentCount * (0.4 + Math.random() * 0.3)); // 40-70% of present students bring flowers
+        
+        mockAnalysis[classCode] = {
+          totalStudents,
+          presentCount,
+          absentCount,
+          attendanceRate: Math.round((presentCount / totalStudents) * 100),
+          flowerCount,
+          latestDate: today
+        };
+      });
+      
+      setClassAnalysis(mockAnalysis);
+      setLatestUpdateDate(today);
     }
-  }, [filters.year, filters.month, filters.classCode, generateMockData]);
+  }, [filters.classCode, students]);
+
+  // Fetch attendance trends with real API integration
+  const fetchAttendanceTrends = useCallback(async () => {
+    try {
+      console.log('Fetching latest attendance trends from API...');
+      const response = await axios.get('/api/stats/latest-trends', {
+        headers: getAuthHeaders(),
+        params: {
+          classCode: filters.classCode || undefined
+        }
+      });
+      
+      if (response.data.success) {
+        console.log('Loaded latest attendance trends from API');
+        setAttendanceData(response.data.data);
+        setTrendsPeriod(response.data.period);
+        return;
+      } else {
+        throw new Error('API returned unsuccessful response');
+      }
+    } catch (error) {
+      console.warn('Latest trends API call failed, using mock data:', error.message);
+      
+      // Generate mock data for current month's Sundays
+      const currentDate = new Date();
+      const currentMonth = currentDate.getMonth();
+      const currentYear = currentDate.getFullYear();
+      const mockTrends = [];
+      
+      // Find all Sundays in current month up to today
+      for (let day = 1; day <= currentDate.getDate(); day++) {
+        const date = new Date(currentYear, currentMonth, day);
+        if (date.getDay() === 0) { // Sunday
+          const basePresent = 60 + Math.random() * 30;
+          const baseAbsent = 15 + Math.random() * 10;
+          const totalStudents = basePresent + baseAbsent;
+          
+          mockTrends.push({
+            date: date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+            present: Math.floor(basePresent),
+            absent: Math.floor(baseAbsent),
+            flowers: Math.floor(basePresent * (0.3 + Math.random() * 0.4)),
+            attendanceRate: Math.floor((basePresent / totalStudents) * 100)
+          });
+        }
+      }
+      
+      setAttendanceData(mockTrends);
+      setTrendsPeriod(`${currentDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}`);
+    }
+  }, [filters.classCode]);
+
+  // Fetch individual student attendance with real API integration
+  const fetchStudentAttendance = useCallback(async (studentId) => {
+    if (!studentId) return;
+    
+    setStudentLoading(true);
+    
+    try {
+      console.log(`Fetching attendance for student ${studentId}...`);
+      const response = await axios.get(`/api/attendance/student/${studentId}`, {
+        headers: getAuthHeaders(),
+        params: {
+          startDate: filters.startDate.toISOString().split('T')[0],
+          endDate: filters.endDate.toISOString().split('T')[0]
+        }
+      });
+      
+      if (response.data.success) {
+        console.log(`Loaded attendance records for student ${studentId}`);
+        setStudentAttendance(response.data.data || []);
+        return;
+      } else {
+        throw new Error('API returned unsuccessful response');
+      }
+    } catch (error) {
+      console.warn('Student attendance API call failed, using mock data:', error.message);
+      
+      // Generate realistic mock student attendance
+      const mockAttendance = [];
+      const startDate = new Date(filters.startDate);
+      const endDate = new Date(filters.endDate);
+      
+      for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+        if (d.getDay() === 0) {
+          const isPresent = Math.random() > 0.15;
+          const status = isPresent ? 'present' : 'absent';
+          const broughtFlowers = isPresent && Math.random() > 0.4;
+          
+          mockAttendance.push({
+            date: new Date(d).toISOString().split('T')[0],
+            status,
+            flowerOffering: {
+              brought: broughtFlowers,
+              type: broughtFlowers ? ['Rose', 'Lotus', 'Jasmine', 'Marigold', 'Hibiscus'][Math.floor(Math.random() * 5)] : null
+            },
+            reason: status === 'absent' ? ['Sick', 'Family event', 'Travel', 'Weather'][Math.floor(Math.random() * 4)] : ''
+          });
+        }
+      }
+      
+      setStudentAttendance(mockAttendance);
+    } finally {
+      setStudentLoading(false);
+    }
+  }, [filters.startDate, filters.endDate]);
+
+  // Comprehensive data refresh function
+  const refreshAllData = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      console.log('Refreshing all attendance data...');
+      
+      // Refresh students first
+      await fetchStudents();
+      
+      // Then refresh other data in parallel
+      await Promise.all([
+        fetchClassAnalysis(),
+        fetchAttendanceTrends()
+      ]);
+      
+      // Refresh selected student data if needed
+      if (selectedStudent) {
+        await fetchStudentAttendance(selectedStudent._id);
+      }
+      
+      console.log('All data refreshed successfully');
+    } catch (error) {
+      console.error('Error refreshing data:', error);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [fetchStudents, fetchClassAnalysis, fetchAttendanceTrends, fetchStudentAttendance, selectedStudent]);
 
   // Main data fetch effect
   useEffect(() => {
-    const fetchData = async () => {
-      // Reset when filters change
-      setFlowerData([]);
-      setError(null);
-      
-      console.log('Fetching data with filters:', filters);
-      
+    const loadStudents = async () => {
+      setLoading(true);
       try {
-        // First get students
-        const studentsData = await fetchStudents();
-        console.log(`Retrieved ${studentsData.length} students`);
-        
-        // Then get attendance based on students
-        await fetchAttendance(studentsData);
+        await fetchStudents();
       } catch (error) {
-        console.error("Error in data fetching:", error);
-        setError(`Error: ${error.message || L.errorFetch}`);
+        console.error('Error loading students:', error);
+      } finally {
         setLoading(false);
       }
     };
     
-    fetchData();
-  }, [fetchStudents, fetchAttendance, filters, currentLang]);
+    loadStudents();
+  }, [fetchStudents]);
 
-  // Filtered students for dropdown
-  const filteredStudents = students.filter(student =>
-    !filters.searchTerm ||
-    (student.name[currentLang] && student.name[currentLang].toLowerCase().includes(filters.searchTerm.toLowerCase())) ||
-    student.studentId.toLowerCase().includes(filters.searchTerm.toLowerCase())
-  );
-
-  // Export CSV
-  const handleExportCSV = () => {
-    if (!attendanceData || attendanceData.length === 0) return;
-    
-    // Create CSV content
-    const headers = "Date,Total Students,Present,Absent,Late,Attendance Rate\n";
-    const rows = attendanceData.map(day => 
-      `${day.date},${day.total},${day.present},${day.absent},${day.late},${day.attendanceRate}%`
-    ).join('\n');
-    
-    const csvContent = headers + rows;
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    
-    const link = document.createElement('a');
-    link.setAttribute('href', url);
-    link.setAttribute('download', `attendance-${filters.year}-${filters.month}.csv`);
-    link.style.visibility = 'hidden';
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
-
-  // Class-wise summary
-  const classSummary = ['ADH', 'MET', 'KHA', 'NEK'].map(code => {
-    const classStudents = students.filter(s => s.classCode === code);
-    const total = classStudents.length;
-    
-    // Calculate attendance percentage for this class
-    let percent = 0;
-    if (attendanceData.length > 0) {
-      // Mock calculation (in real app, use actual data)
-      percent = (70 + Math.floor(Math.random() * 25)).toFixed(1);
+  // Separate effect for class analysis (runs after students are loaded)
+  useEffect(() => {
+    if (students.length > 0) {
+      fetchClassAnalysis();
     }
-    
-    return {
-      code,
-      label: CLASS_LABELS[code][currentLang],
-      total,
-      percent
+  }, [fetchClassAnalysis, students, filters.startDate, filters.endDate]);
+
+  // Separate effect for trends (runs independently)
+  useEffect(() => {
+    fetchAttendanceTrends();
+  }, [fetchAttendanceTrends]);
+
+  // Auto-refresh effect - refresh data when attendance is marked elsewhere
+  useEffect(() => {
+    const handleAttendanceUpdate = () => {
+      console.log('Attendance updated elsewhere, refreshing data...');
+      refreshAllData();
     };
+    
+    // Listen for attendance update events
+    window.addEventListener('attendance-updated', handleAttendanceUpdate);
+    
+    // Auto-refresh every 5 minutes
+    const interval = setInterval(() => {
+      console.log('Auto-refreshing attendance data...');
+      refreshAllData();
+    }, 5 * 60 * 1000);
+    
+    return () => {
+      window.removeEventListener('attendance-updated', handleAttendanceUpdate);
+      clearInterval(interval);
+    };
+  }, [refreshAllData]);
+
+  // Filter students by search
+  const filteredStudents = students.filter(student => {
+    if (!filters.searchTerm) return true;
+    return (
+      student.name.en.toLowerCase().includes(filters.searchTerm.toLowerCase()) ||
+      student.studentId.toLowerCase().includes(filters.searchTerm.toLowerCase())
+    );
   });
 
-  // Pie chart data for present/absent/late
-  const pieData = [
-    { name: L.present, value: attendanceData.reduce((sum, d) => sum + d.present, 0) },
-    { name: L.absent, value: attendanceData.reduce((sum, d) => sum + d.absent, 0) },
-    { name: L.late, value: attendanceData.reduce((sum, d) => sum + d.late, 0) }
-  ];
+  // Calculate overall statistics (REMOVED bestClass)
+  const overallStats = React.useMemo(() => {
+    const totalStudents = students.length;
+    const classData = Object.values(classAnalysis);
+    
+    if (classData.length === 0) return { totalStudents: 0, avgAttendance: 0, totalClasses: 0 };
+    
+    const avgAttendance = classData.reduce((sum, cls) => sum + (cls.attendanceRate || 0), 0) / classData.length;
+    const totalClasses = Object.keys(CLASS_CONFIGS).length;
+    
+    return {
+      totalStudents,
+      avgAttendance: Math.round(avgAttendance),
+      totalClasses
+    };
+  }, [students, classAnalysis]);
 
-  // Get Sundays in current month
-  function getSundaysInMonth(month, year) {
-    const sundays = [];
-    const date = new Date(year, month - 1, 1);
-    
-    // Move to the first Sunday in the month
-    while (date.getDay() !== 0) {
-      date.setDate(date.getDate() + 1);
-    }
-    
-    // Collect all Sundays
-    while (date.getMonth() === month - 1) {
-      sundays.push(new Date(date));
-      date.setDate(date.getDate() + 7);
-    }
-    
-    return sundays;
-  }
-
-  // Individual student attendance data
-  const handleStudentSelect = useCallback(async (studentId) => {
-    setSelectedStudent(studentId);
-    
-    if (!studentId) return;
-    
-    setLoading(true);
-    
+  // Export functionality
+  const handleExport = async () => {
+    setExportLoading(true);
     try {
-      // Try to get actual data from API
-      const response = await axios.get(`/api/attendance/student/${studentId}`, {
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`
-        },
-        params: {
-          year: filters.year,
-          month: filters.month
-        }
+      // Create comprehensive CSV content
+      let csvContent = "Class,Total Students,Attendance Rate,Present Count,Absent Count,Flower Count\n";
+      
+      Object.entries(classAnalysis).forEach(([classCode, data]) => {
+        csvContent += `${CLASS_CONFIGS[classCode]?.name || classCode},${data.totalStudents},${data.attendanceRate}%,${data.presentCount},${data.absentCount},${data.flowerCount}\n`;
       });
       
-      if (response.data?.data) {
-        // Format real data
-      } else {
-        // Generate mock data for development
+      // Add individual student data if a student is selected
+      if (selectedStudent && studentAttendance.length > 0) {
+        csvContent += "\n\nIndividual Student Attendance:\n";
+        csvContent += "Date,Status,Flowers,Notes\n";
+        studentAttendance.forEach(record => {
+          csvContent += `${record.date},${record.status},${record.flowerOffering?.brought ? record.flowerOffering.type : 'No'},${record.reason || ''}\n`;
+        });
       }
+      
+      // Download CSV
+      const blob = new Blob([csvContent], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `attendance-analysis-${filters.year}-${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+      console.log('Data exported successfully');
     } catch (error) {
-      console.error("Error fetching student attendance:", error);
-      // Generate mock data for selected student
+      console.error('Export error:', error);
     } finally {
-      setLoading(false);
+      setExportLoading(false);
     }
-  }, [filters.year, filters.month]);
+  };
 
-  return (
-    <div className="space-y-6">
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
-        {/* Header with title and export button */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 md:mb-0">
-            {L.analysis}
-          </h2>
-          <div className="flex gap-2">
-            <button
-              onClick={handleExportCSV}
-              className="px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition-colors"
-              disabled={!attendanceData.length}
-            >
-              {L.exportCSV}
-            </button>
-          </div>
-        </div>
+  // Prepare chart data
+  const pieChartData = attendanceData.length > 0 ? [
+    { name: 'Present', value: attendanceData.reduce((sum, d) => sum + d.present, 0), color: CHART_COLORS.present },
+    { name: 'Absent', value: attendanceData.reduce((sum, d) => sum + d.absent, 0), color: CHART_COLORS.absent }
+  ] : [];
 
-        {/* Filters */}
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-4 mb-6">
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              {L.month}
-            </label>
-            <select
-              name="month"
-              value={filters.month}
-              onChange={e => setFilters(f => ({ ...f, month: Number(e.target.value) }))}
-              className="w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:border-blue-300 dark:bg-gray-700 dark:text-white dark:border-gray-600"
-            >
-              {getMonthNames().map((month, idx) => (
-                <option key={idx} value={idx + 1}>
-                  {month}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              {L.year}
-            </label>
-            <select
-              name="year"
-              value={filters.year}
-              onChange={e => setFilters(f => ({ ...f, year: Number(e.target.value) }))}
-              className="w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:border-blue-300 dark:bg-gray-700 dark:text-white dark:border-gray-600"
-            >
-              {[...Array(5)].map((_, i) => (
-                <option key={i} value={new Date().getFullYear() - i}>
-                  {new Date().getFullYear() - i}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              {L.class}
-            </label>
-            <select
-              name="classCode"
-              value={filters.classCode}
-              onChange={e => setFilters(f => ({ ...f, classCode: e.target.value }))}
-              className="w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:border-blue-300 dark:bg-gray-700 dark:text-white dark:border-gray-600"
-            >
-              <option value="">{L.all}</option>
-              <option value="ADH">{CLASS_LABELS.ADH[currentLang]}</option>
-              <option value="MET">{CLASS_LABELS.MET[currentLang]}</option>
-              <option value="KHA">{CLASS_LABELS.KHA[currentLang]}</option>
-              <option value="NEK">{CLASS_LABELS.NEK[currentLang]}</option>
-            </select>
-          </div>
-          <div className="md:col-span-2">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              {L.search}
-            </label>
-            <input
-              type="text"
-              value={filters.searchTerm}
-              onChange={e => setFilters(f => ({ ...f, searchTerm: e.target.value }))}
-              placeholder={L.searchPlaceholder}
-              className="w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:border-blue-300 dark:bg-gray-700 dark:text-white dark:border-gray-600"
-            />
-          </div>
-        </div>
-
-        {/* Student Filter */}
-        {filteredStudents.length > 0 && (
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-              {L.selectStudent}
-            </label>
-            <select
-              value={selectedStudent}
-              onChange={e => handleStudentSelect(e.target.value)}
-              className="w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:border-blue-300 dark:bg-gray-700 dark:text-white dark:border-gray-600"
-            >
-              <option value="">{L.all}</option>
-              {filteredStudents.map(student => (
-                <option key={student._id} value={student._id}>
-                  {student.studentId} - {student.name[currentLang]}
-                </option>
-              ))}
-            </select>
-          </div>
-        )}
-
-        {/* Error/Loading */}
-        {error && (
-          <div className="p-3 mb-4 bg-red-100 text-red-700 dark:bg-red-900 dark:text-red-300 rounded">
-            {error}
-          </div>
-        )}
-        {loading && (
-          <div className="flex justify-center items-center p-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
-          </div>
-        )}
-
-        {/* Class-wise Summary */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          {classSummary.map((cls) => (
-            <div key={cls.code} className="bg-blue-50 dark:bg-blue-900 p-4 rounded-lg">
-              <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                {cls.label}
-              </h3>
-              <p className="text-lg font-semibold text-blue-800 dark:text-blue-200">
-                {cls.total} {L.students}
-              </p>
-              <p className="text-sm text-green-700 dark:text-green-300">
-                {L.attendanceRate}: {cls.percent}%
-              </p>
-            </div>
+  if (loading) {
+    return (
+      <div className="container mx-auto p-6 space-y-6">
+        <Skeleton className="h-8 w-64" />
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {[...Array(3)].map((_, i) => (
+            <Skeleton key={i} className="h-32" />
           ))}
         </div>
-
-        {/* Attendance Trend Chart */}
-        <div className="mb-8">
-          <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
-            {L.trend}
-          </h3>
-          <div style={{ width: '100%', height: 250 }}>
-            <ResponsiveContainer>
-              <LineChart data={attendanceData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" tickFormatter={d => new Date(d).getDate()} />
-                <YAxis domain={[0, 100]} tickFormatter={v => `${v}%`} />
-                <Tooltip formatter={v => `${v}%`} labelFormatter={d => new Date(d).toLocaleDateString(currentLang)} />
-                <Line type="monotone" dataKey="attendanceRate" stroke="#10b981" strokeWidth={2} dot />
-              </LineChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-
-        {/* Daily Breakdown & Attendance Rate */}
-        <div className="mb-8 grid grid-cols-1 md:grid-cols-2 gap-6">
-          <div>
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
-              {L.dailyBreakdown}
-            </h3>
-            <div style={{ width: '100%', height: 250 }}>
-              <ResponsiveContainer>
-                <BarChart data={attendanceData}>
-                  <CartesianGrid strokeDasharray="3 3" />
-                  <XAxis dataKey="date" tickFormatter={d => new Date(d).getDate()} />
-                  <YAxis />
-                  <Tooltip />
-                  <Legend />
-                  <Bar dataKey="present" fill="#10b981" name={L.present} />
-                  <Bar dataKey="absent" fill="#ef4444" name={L.absent} />
-                  <Bar dataKey="late" fill="#f59e42" name={L.late} />
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-          <div>
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
-              {L.attendanceRate}
-            </h3>
-            <div style={{ width: '100%', height: 250 }}>
-              <ResponsiveContainer>
-                <PieChart>
-                  <Pie
-                    data={pieData}
-                    dataKey="value"
-                    nameKey="name"
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={80}
-                    label
-                  >
-                    {pieData.map((entry, idx) => (
-                      <Cell key={`cell-${idx}`} fill={COLORS[idx % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-        </div>
-
-        {/* Calendar View for Sundays/Poya/Flower Days */}
-        <div className="mb-8">
-          <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
-            {L.sundays} / {L.poya} / {L.flower} - {getMonthNames()[filters.month-1]} {filters.year}
-          </h3>
-          <div className="flex flex-wrap gap-2">
-            {getSundaysInMonth(filters.month, filters.year).map((sunday, index) => {
-              const date = sunday.toISOString().split('T')[0];
-              const dayData = attendanceData.find(d => d.date === date) || { attendanceRate: 0 };
-              const isPoya = dayData.isPoya;
-              const isFlower = dayData.isFlowerDay;
-              
-              return (
-                <div 
-                  key={`${date}-${index}`} // Added index to ensure unique keys
-                  className={`rounded-lg shadow p-4 w-36 ${
-                    isPoya ? 'bg-yellow-100 dark:bg-yellow-900' :
-                    isFlower ? 'bg-pink-100 dark:bg-pink-900' :
-                    'bg-white dark:bg-gray-700'
-                  }`}
-                >
-                  <div className="text-center">
-                    <div className="text-sm font-medium">{sunday.getDate()}</div>
-                    <div className="text-xs text-gray-500">
-                      {isPoya ? L.poyaDay : 
-                       isFlower ? L.flower :
-                       L.sunday}
-                    </div>
-                    <div className="mt-2">
-                      <div className="w-full bg-gray-200 rounded-full h-2">
-                        <div
-                          className="bg-green-600 h-2 rounded-full"
-                          style={{ width: `${dayData.attendanceRate}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                    <div className="mt-1 text-sm font-medium">
-                      {dayData.attendanceRate}%
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-            
-            {getSundaysInMonth(filters.month, filters.year).length === 0 && (
-              <div className="text-center p-6 text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-900 rounded w-full">
-                {L.noSundaysInMonth}
-              </div>
-            )}
-          </div>
-        </div>
-
-        {/* Flower Offering Participation */}
-        <div className="mb-8">
-          <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
-            {L.flowerParticipation}
-          </h3>
-          {flowerData.length === 0 ? (
-            <div className="text-center p-6 text-gray-500 dark:text-gray-400 bg-gray-50 dark:bg-gray-900 rounded">
-              {L.noData}
-            </div>
-          ) : (
-            flowerData.map((day, idx) => (
-              <div key={`flower-${day.date}-${idx}`} className="mb-4">
-                <div className="font-semibold mb-2">
-                  {new Date(day.date).toLocaleDateString(currentLang)} ({L.flower})
-                </div>
-                <div className="overflow-x-auto">
-                  <table className="min-w-full bg-white dark:bg-gray-800 rounded">
-                    <thead>
-                      <tr>
-                        <th className="px-2 py-1 text-left text-xs font-medium">{L.student}</th>
-                        <th className="px-2 py-1 text-left text-xs font-medium">{L.flowerType}</th>
-                        <th className="px-2 py-1 text-left text-xs font-medium">{L.status}</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {day.participation.map((stu, index) => (
-                        <tr key={`${stu.studentId || ''}-${index}`}>
-                          <td className="px-2 py-1 text-xs">{stu.name} ({stu.studentId})</td>
-                          <td className="px-2 py-1 text-xs">{stu.flowerType || '-'}</td>
-                          <td className="px-2 py-1 text-xs">
-                            {stu.brought ? L.brought : L.notBrought}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-
-        {/* Individual Student Analysis */}
-        {selectedStudent && (
-          <div className="mb-8">
-            <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
-              {L.individualAnalysis}
-            </h3>
-            <div className="overflow-x-auto rounded-lg shadow">
-              <table className="min-w-full bg-white dark:bg-gray-800">
-                <thead>
-                  <tr>
-                    <th className="px-4 py-2 text-left text-sm font-medium">{L.date}</th>
-                    <th className="px-4 py-2 text-left text-sm font-medium">{L.present}</th>
-                    <th className="px-4 py-2 text-left text-sm font-medium">{L.absent}</th>
-                    <th className="px-4 py-2 text-left text-sm font-medium">{L.late}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {attendanceData.map((day, idx) => (
-                    <tr key={`${day.date}-${idx}`}>
-                      <td className="px-4 py-2 text-sm">
-                        {new Date(day.date).toLocaleDateString(currentLang)}
-                      </td>
-                      <td className="px-4 py-2 text-sm">{Math.random() > 0.2 ? '1' : '0'}</td>
-                      <td className="px-4 py-2 text-sm">{Math.random() > 0.8 ? '1' : '0'}</td>
-                      <td className="px-4 py-2 text-sm">{Math.random() > 0.9 ? '1' : '0'}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        )}
+        <Skeleton className="h-96" />
       </div>
+    );
+  }
+
+  return (
+    <div className="container mx-auto p-6 space-y-6">
+      {/* Header */}
+      <motion.div 
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex flex-col md:flex-row md:items-center md:justify-between"
+      >
+        <div>
+          <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
+            Latest Attendance Analysis
+          </h1>
+          <p className="text-muted-foreground mt-1">
+            {latestUpdateDate 
+              ? `Latest attendance data from ${new Date(latestUpdateDate).toLocaleDateString('en-US', { 
+                  weekday: 'long', 
+                  year: 'numeric', 
+                  month: 'long', 
+                  day: 'numeric' 
+                })}`
+              : 'Real-time attendance insights from the most recent session'
+            }
+          </p>
+        </div>
+        
+        <div className="flex items-center gap-2 mt-4 md:mt-0">
+          <Button 
+            variant="outline" 
+            onClick={refreshAllData}
+            disabled={refreshing}
+          >
+            <FaSync className={`mr-2 h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+            {refreshing ? 'Refreshing...' : 'Refresh'}
+          </Button>
+          
+          <Button 
+            variant="outline" 
+            onClick={handleExport}
+            disabled={exportLoading}
+          >
+            <FaDownload className="mr-2 h-4 w-4" />
+            {exportLoading ? 'Exporting...' : 'Export Data'}
+          </Button>
+        </div>
+      </motion.div>
+
+      {/* Filters */}
+      <motion.div 
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+      >
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <FaFilter className="h-4 w-4" />
+              Filters & Settings
+            </CardTitle>
+            <CardDescription>
+              Filter and customize your attendance analysis view
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Select value={filters.classCode} onValueChange={(value) => setFilters(f => ({ ...f, classCode: value === "all" ? "" : value }))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="All Classes" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Classes</SelectItem>
+                  {Object.entries(CLASS_CONFIGS).map(([code, config]) => (
+                    <SelectItem key={code} value={code}>
+                      {config.name} ({config.description})
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              
+              <Select value={filters.year.toString()} onValueChange={(value) => setFilters(f => ({ ...f, year: parseInt(value) }))}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select Year" />
+                </SelectTrigger>
+                <SelectContent>
+                  {[...Array(3)].map((_, i) => {
+                    const year = new Date().getFullYear() - i;
+                    return (
+                      <SelectItem key={year} value={year.toString()}>
+                        {year}
+                      </SelectItem>
+                    );
+                  })}
+                </SelectContent>
+              </Select>
+              
+              <div className="relative">
+                <FaSearch className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
+                <Input
+                  placeholder="Search students..."
+                  value={filters.searchTerm}
+                  onChange={(e) => setFilters(f => ({ ...f, searchTerm: e.target.value }))}
+                  className="pl-10"
+                />
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* Overview Stats - REMOVED Best Performing Card */}
+      <motion.div 
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+        className="grid grid-cols-1 md:grid-cols-3 gap-4"
+      >
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Total Students</p>
+                <p className="text-2xl font-bold">{overallStats.totalStudents}</p>
+                <p className="text-xs text-muted-foreground mt-1">Across all classes</p>
+              </div>
+              <FaUsers className="h-8 w-8 text-blue-500" />
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Average Attendance</p>
+                <p className="text-2xl font-bold">{overallStats.avgAttendance}%</p>
+                <p className="text-xs text-muted-foreground mt-1">Overall performance</p>
+              </div>
+              <FaChartLine className="h-8 w-8 text-green-500" />
+            </div>
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Active Classes</p>
+                <p className="text-2xl font-bold">{overallStats.totalClasses}</p>
+                <p className="text-xs text-muted-foreground mt-1">Age-based groups</p>
+              </div>
+              <FaCalendarAlt className="h-8 w-8 text-purple-500" />
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* Main Content Tabs */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3 }}
+      >
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="overview">Class Overview</TabsTrigger>
+            <TabsTrigger value="trends">Attendance Trends</TabsTrigger>
+            <TabsTrigger value="students">Individual Students</TabsTrigger>
+          </TabsList>
+
+          {/* Class Overview Tab - FIXED: Show real data */}
+          <TabsContent value="overview" className="space-y-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Class Cards */}
+              <div className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-lg font-semibold">Latest Class Performance</h3>
+                  {latestUpdateDate && (
+                    <Badge variant="outline" className="text-sm">
+                      {new Date(latestUpdateDate).toLocaleDateString('en-US', { 
+                        month: 'short', 
+                        day: 'numeric',
+                        year: 'numeric'
+                      })}
+                    </Badge>
+                  )}
+                </div>
+                
+                {Object.entries(classAnalysis).map(([classCode, data]) => {
+                  const config = CLASS_CONFIGS[classCode];
+                  return (
+                    <motion.div
+                      key={classCode}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.1 }}
+                    >
+                      <Card className={config.bgColor}>
+                        <CardContent className="p-6">
+                          <div className="flex items-center justify-between mb-4">
+                            <div>
+                              <h4 className="font-semibold text-lg">{config.name}</h4>
+                              <p className="text-sm text-muted-foreground">{config.nameSi} • {config.description}</p>
+                            </div>
+                            <Badge variant="outline">{data.totalStudents} students</Badge>
+                          </div>
+                          
+                          <div className="space-y-3">
+                            <div className="flex justify-between items-center">
+                              <span className="text-sm font-medium">Attendance Rate</span>
+                              <span className="font-semibold text-lg">{data.attendanceRate}%</span>
+                            </div>
+                            <Progress value={data.attendanceRate} className="h-2" />
+                            
+                            <div className="grid grid-cols-3 gap-3 text-center">
+                              <div>
+                                <p className="text-lg font-semibold text-green-600">{data.presentCount}</p>
+                                <p className="text-xs text-muted-foreground">Present</p>
+                              </div>
+                              <div>
+                                <p className="text-lg font-semibold text-red-600">{data.absentCount}</p>
+                                <p className="text-xs text-muted-foreground">Absent</p>
+                              </div>
+                              <div>
+                                <p className="text-lg font-semibold text-pink-600">{data.flowerCount}</p>
+                                <p className="text-xs text-muted-foreground">Flowers</p>
+                              </div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </motion.div>
+                  );
+                })}
+              </div>
+
+              {/* Pie Chart */}
+              <div>
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Overall Attendance Distribution</CardTitle>
+                    <CardDescription>Breakdown of attendance across all classes</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="h-80">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={pieChartData}
+                            cx="50%"
+                            cy="50%"
+                            labelLine={false}
+                            label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                            outerRadius={80}
+                            fill="#8884d8"
+                            dataKey="value"
+                          >
+                            {pieChartData.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={entry.color} />
+                            ))}
+                          </Pie>
+                          <Tooltip />
+                          <Legend />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+            </div>
+          </TabsContent>
+
+          {/* Trends Tab */}
+          <TabsContent value="trends" className="space-y-4">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Line Chart */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Monthly Attendance Trends</CardTitle>
+                  <CardDescription>
+                    {trendsPeriod ? `Attendance data for ${trendsPeriod}` : 'Latest attendance trends'}
+                  </CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-80">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <LineChart data={attendanceData} margin={{ top: 5, right: 30, left: 20, bottom: 60 }}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis 
+                          dataKey="date" 
+                          tick={{ fontSize: 12, fill: '#6b7280' }}
+                          tickLine={{ stroke: '#6b7280' }}
+                          axisLine={{ stroke: '#6b7280' }}
+                          angle={-45}
+                          textAnchor="end"
+                          height={60}
+                          interval={0}
+                        />
+                        <YAxis 
+                          tick={{ fontSize: 12, fill: '#6b7280' }}
+                          tickLine={{ stroke: '#6b7280' }}
+                          axisLine={{ stroke: '#6b7280' }}
+                        />
+                        <Tooltip 
+                          contentStyle={{
+                            backgroundColor: '#ffffff',
+                            border: '1px solid #e5e7eb',
+                            borderRadius: '8px',
+                            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                          }}
+                          labelFormatter={(value) => `Date: ${value}`}
+                          formatter={(value, name) => [
+                            `${value}%`, 
+                            name === 'attendanceRate' ? 'Attendance Rate' : name
+                          ]}
+                        />
+                        <Legend 
+                          wrapperStyle={{ paddingTop: '20px' }}
+                        />
+                        <Line 
+                          type="monotone" 
+                          dataKey="attendanceRate" 
+                          stroke={CHART_COLORS.present} 
+                          strokeWidth={3}
+                          dot={{ fill: CHART_COLORS.present, strokeWidth: 2, r: 4 }}
+                          activeDot={{ r: 6, stroke: CHART_COLORS.present, strokeWidth: 2 }}
+                          name="Attendance Rate"
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Bar Chart */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Monthly Breakdown</CardTitle>
+                  <CardDescription>Detailed monthly attendance statistics</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="h-80">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={attendanceData} margin={{ top: 5, right: 30, left: 20, bottom: 60 }}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis 
+                          dataKey="date" 
+                          tick={{ fontSize: 12, fill: '#6b7280' }}
+                          tickLine={{ stroke: '#6b7280' }}
+                          axisLine={{ stroke: '#6b7280' }}
+                          angle={-45}
+                          textAnchor="end"
+                          height={60}
+                          interval={0}
+                        />
+                        <YAxis 
+                          tick={{ fontSize: 12, fill: '#6b7280' }}
+                          tickLine={{ stroke: '#6b7280' }}
+                          axisLine={{ stroke: '#6b7280' }}
+                        />
+                        <Tooltip 
+                          contentStyle={{
+                            backgroundColor: '#ffffff',
+                            border: '1px solid #e5e7eb',
+                            borderRadius: '8px',
+                            boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                          }}
+                          labelFormatter={(value) => `Date: ${value}`}
+                          formatter={(value, name) => [
+                            value, 
+                            name === 'present' ? 'Present Students' : 
+                            name === 'absent' ? 'Absent Students' : name
+                          ]}
+                        />
+                        <Legend 
+                          wrapperStyle={{ paddingTop: '20px' }}
+                        />
+                        <Bar 
+                          dataKey="present" 
+                          fill={CHART_COLORS.present} 
+                          name="Present"
+                          radius={[4, 4, 0, 0]}
+                        />
+                        <Bar 
+                          dataKey="absent" 
+                          fill={CHART_COLORS.absent} 
+                          name="Absent"
+                          radius={[4, 4, 0, 0]}
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Area Chart for Flower Offerings */}
+            <Card>
+              <CardHeader>
+                <CardTitle>Flower Offering Participation</CardTitle>
+                <CardDescription>Monthly flower offering trends across all classes</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="h-64">
+                  <ResponsiveContainer width="100%" height="100%">
+                    <AreaChart data={attendanceData} margin={{ top: 5, right: 30, left: 20, bottom: 60 }}>
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis 
+                        dataKey="date" 
+                        tick={{ fontSize: 12, fill: '#6b7280' }}
+                        tickLine={{ stroke: '#6b7280' }}
+                        axisLine={{ stroke: '#6b7280' }}
+                        angle={-45}
+                        textAnchor="end"
+                        height={60}
+                        interval={0}
+                      />
+                      <YAxis 
+                        tick={{ fontSize: 12, fill: '#6b7280' }}
+                        tickLine={{ stroke: '#6b7280' }}
+                        axisLine={{ stroke: '#6b7280' }}
+                      />
+                      <Tooltip 
+                        contentStyle={{
+                          backgroundColor: '#ffffff',
+                          border: '1px solid #e5e7eb',
+                          borderRadius: '8px',
+                          boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.1)'
+                        }}
+                        labelFormatter={(value) => `Date: ${value}`}
+                        formatter={(value, name) => [
+                          value, 
+                          name === 'flowers' ? 'Flower Offerings' : name
+                        ]}
+                      />
+                      <Area 
+                        type="monotone" 
+                        dataKey="flowers" 
+                        stroke={CHART_COLORS.flowers} 
+                        fill={CHART_COLORS.flowers} 
+                        fillOpacity={0.6}
+                        strokeWidth={2}
+                        dot={{ fill: CHART_COLORS.flowers, strokeWidth: 2, r: 3 }}
+                        activeDot={{ r: 5, stroke: CHART_COLORS.flowers, strokeWidth: 2 }}
+                      />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Individual Students Tab */}
+          <TabsContent value="students" className="space-y-4">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              {/* Student List */}
+              <Card>
+                <CardHeader>
+                  <CardTitle>Students ({filteredStudents.length})</CardTitle>
+                  <CardDescription>Click on a student to view detailed attendance</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2 max-h-96 overflow-y-auto">
+                    {filteredStudents.map((student) => (
+                      <motion.div
+                        key={student._id}
+                        whileHover={{ scale: 1.02 }}
+                        whileTap={{ scale: 0.98 }}
+                      >
+                        <Card 
+                          className={`cursor-pointer transition-colors ${
+                            selectedStudent?._id === student._id 
+                              ? 'ring-2 ring-blue-500 bg-blue-50 dark:bg-blue-900/20' 
+                              : 'hover:bg-gray-50 dark:hover:bg-gray-800'
+                          }`}
+                          onClick={() => {
+                            setSelectedStudent(student);
+                            fetchStudentAttendance(student._id);
+                          }}
+                        >
+                          <CardContent className="p-3">
+                            <div className="flex items-center gap-3">
+                              <Avatar className="h-10 w-10">
+                                {student.profileImage?.url ? (
+                                  <AvatarImage src={student.profileImage.url} />
+                                ) : (
+                                  <AvatarFallback>
+                                    {student.name.en.charAt(0)}
+                                  </AvatarFallback>
+                                )}
+                              </Avatar>
+                              <div className="flex-1 min-w-0">
+                                <p className="font-medium truncate">{student.name.en}</p>
+                                <p className="text-sm text-muted-foreground">{student.studentId}</p>
+                                <Badge variant="outline" className="text-xs">
+                                  {CLASS_CONFIGS[student.classCode]?.name}
+                                </Badge>
+                              </div>
+                              <FaEye className="h-4 w-4 text-gray-400" />
+                            </div>
+                          </CardContent>
+                        </Card>
+                      </motion.div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Student Details */}
+              <div className="lg:col-span-2">
+                {selectedStudent ? (
+                  <div className="space-y-4">
+                    {/* Student Info Card */}
+                    <Card>
+                      <CardHeader>
+                        <CardTitle className="flex items-center gap-3">
+                          <Avatar className="h-12 w-12">
+                            {selectedStudent.profileImage?.url ? (
+                              <AvatarImage src={selectedStudent.profileImage.url} />
+                            ) : (
+                              <AvatarFallback>
+                                {selectedStudent.name.en.charAt(0)}
+                              </AvatarFallback>
+                            )}
+                          </Avatar>
+                          <div>
+                            <h3 className="text-lg font-semibold">{selectedStudent.name.en}</h3>
+                            <p className="text-sm text-muted-foreground">{selectedStudent.studentId}</p>
+                            <Badge className="mt-1">{CLASS_CONFIGS[selectedStudent.classCode]?.name}</Badge>
+                          </div>
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        {studentLoading ? (
+                          <div className="space-y-2">
+                            <Skeleton className="h-4 w-full" />
+                            <Skeleton className="h-4 w-3/4" />
+                          </div>
+                        ) : (
+                          <div className="grid grid-cols-3 gap-4 text-center">
+                            <div>
+                              <p className="text-2xl font-bold text-green-600">
+                                {studentAttendance.filter(a => a.status === 'present').length}
+                              </p>
+                              <p className="text-sm text-muted-foreground">Present</p>
+                            </div>
+                            <div>
+                              <p className="text-2xl font-bold text-red-600">
+                                {studentAttendance.filter(a => a.status === 'absent').length}
+                              </p>
+                              <p className="text-sm text-muted-foreground">Absent</p>
+                            </div>
+                            <div>
+                              <p className="text-2xl font-bold text-pink-600">
+                                {studentAttendance.filter(a => a.flowerOffering?.brought).length}
+                              </p>
+                              <p className="text-sm text-muted-foreground">Flowers</p>
+                            </div>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+
+                    {/* Attendance History */}
+                    <Card>
+                      <CardHeader>
+                        <CardTitle>Attendance History</CardTitle>
+                        <CardDescription>Detailed attendance records for the selected period</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        {studentLoading ? (
+                          <div className="space-y-2">
+                            {[...Array(5)].map((_, i) => (
+                              <Skeleton key={i} className="h-12 w-full" />
+                            ))}
+                          </div>
+                        ) : (
+                          <div className="space-y-2 max-h-64 overflow-y-auto">
+                            <Table>
+                              <TableHeader>
+                                <TableRow>
+                                  <TableHead>Date</TableHead>
+                                  <TableHead>Status</TableHead>
+                                  <TableHead>Flowers</TableHead>
+                                  <TableHead>Notes</TableHead>
+                                </TableRow>
+                              </TableHeader>
+                              <TableBody>
+                                {studentAttendance.length === 0 ? (
+                                  <TableRow>
+                                    <TableCell colSpan={4} className="text-center text-muted-foreground">
+                                      No attendance records found for the selected period
+                                    </TableCell>
+                                  </TableRow>
+                                ) : (
+                                  studentAttendance.map((record, index) => (
+                                    <TableRow key={index}>
+                                      <TableCell className="font-medium">
+                                        {new Date(record.date).toLocaleDateString()}
+                                      </TableCell>
+                                      <TableCell>
+                                        <div className="flex items-center gap-2">
+                                          {record.status === 'present' && (
+                                            <>
+                                              <FaCheckCircle className="h-4 w-4 text-green-600" />
+                                              <span className="text-green-600 font-medium">Present</span>
+                                            </>
+                                          )}
+                                          {record.status === 'absent' && (
+                                            <>
+                                              <FaTimesCircle className="h-4 w-4 text-red-600" />
+                                              <span className="text-red-600 font-medium">Absent</span>
+                                            </>
+                                          )}
+                                        </div>
+                                      </TableCell>
+                                      <TableCell>
+                                        {record.flowerOffering?.brought ? (
+                                          <div className="flex items-center gap-2">
+                                            <FaLeaf className="h-4 w-4 text-pink-600" />
+                                            <span className="text-pink-600 font-medium">{record.flowerOffering.type}</span>
+                                          </div>
+                                        ) : (
+                                          <FaMinus className="h-4 w-4 text-gray-400" />
+                                        )}
+                                      </TableCell>
+                                      <TableCell className="text-sm text-muted-foreground">
+                                        {record.reason || '-'}
+                                      </TableCell>
+                                    </TableRow>
+                                  ))
+                                )}
+                              </TableBody>
+                            </Table>
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </div>
+                ) : (
+                  <Card>
+                    <CardContent className="flex items-center justify-center h-64">
+                      <div className="text-center">
+                        <FaUsers className="mx-auto h-12 w-12 text-gray-400 mb-4" />
+                        <p className="text-lg font-medium text-gray-900 dark:text-white">
+                          Select a Student
+                        </p>
+                        <p className="text-muted-foreground">
+                          Choose a student from the list to view their detailed attendance history and analytics
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
+              </div>
+            </div>
+          </TabsContent>
+        </Tabs>
+      </motion.div>
     </div>
   );
 };
