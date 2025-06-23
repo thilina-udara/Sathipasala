@@ -1,116 +1,145 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   FaUserGraduate, 
   FaCalendarCheck, 
-  FaArrowRight, 
   FaSync, 
   FaExclamationTriangle, 
-  FaUserFriends, 
-  FaChevronRight
+  FaUsers,
+  FaEye,
+  FaChevronDown,
+  FaChevronUp,
+  FaTimes,
+  FaListUl,
+  FaCalendarAlt,
+  FaClock,
+  FaEdit,
+  FaTrash,
+  FaSave,
+  FaPlus,
+  FaMoon,
+  FaSun,
+  FaSpinner,
+  FaMapMarkerAlt,
+  FaBook,
+  FaPray,
+  FaOm
 } from 'react-icons/fa';
 
 // Import ShadCN components
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Progress } from "@/components/ui/progress";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Table,
   TableBody,
-  TableCaption,
   TableCell,
   TableHead,
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Skeleton } from "@/components/ui/skeleton";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 const ClassGroups = () => {
   const { t } = useTranslation();
   const navigate = useNavigate();
-  const location = useLocation();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [classStats, setClassStats] = useState({
-    ADH: { totalStudents: 0, attendanceRate: 0, lastClassDate: null, todayAttendance: 0 },
-    MET: { totalStudents: 0, attendanceRate: 0, lastClassDate: null, todayAttendance: 0 },
-    KHA: { totalStudents: 0, attendanceRate: 0, lastClassDate: null, todayAttendance: 0 },
-    NEK: { totalStudents: 0, attendanceRate: 0, lastClassDate: null, todayAttendance: 0 }
-  });
-  const [teacherAssignments, setTeacherAssignments] = useState({
-    ADH: { name: 'Mihiri Rathnayake' },
-    MET: { name: 'Anura Bandara' },
-    KHA: { name: 'Tharaka Fernando' },
-    NEK: { name: 'Priya Gunasekara' }
-  });
   const [refreshing, setRefreshing] = useState(false);
-  const [activeTab, setActiveTab] = useState("overview");
-
-  // Student modal state
+  
+  // Modal state for student display
   const [showStudentsModal, setShowStudentsModal] = useState(false);
   const [selectedClass, setSelectedClass] = useState(null);
   const [classStudents, setClassStudents] = useState([]);
   const [loadingStudents, setLoadingStudents] = useState(false);
+  
+  // Next Class and Poya Day state - FIXED: Better state management
+  const [nextClass, setNextClass] = useState({
+    date: '',
+    time: '08:00',
+    location: 'Main Hall',
+    topic: 'Weekly Dharma Session'
+  });
+  const [nextPoyaDay, setNextPoyaDay] = useState({
+    date: '',
+    name: '',
+    description: 'Full Moon Day - Sacred meditation and prayer session'
+  });
+  const [editingClass, setEditingClass] = useState(false);
+  const [editingPoya, setEditingPoya] = useState(false);
+  const [savingClass, setSavingClass] = useState(false);
+  const [savingPoya, setSavingPoya] = useState(false);
+  
+  // Countdown state for smooth animations
+  const [countdown, setCountdown] = useState({
+    class: { days: 0, hours: 0, minutes: 0, seconds: 0 },
+    poya: { days: 0, hours: 0, minutes: 0, seconds: 0 }
+  });
+  
+  const [classData, setClassData] = useState({
+    ADH: { totalStudents: 0, lastAttendance: 0 },
+    MET: { totalStudents: 0, lastAttendance: 0 },
+    KHA: { totalStudents: 0, lastAttendance: 0 },
+    NEK: { totalStudents: 0, lastAttendance: 0 }
+  });
 
-  // Define class styles
-  const classStyles = {
+  // Class configurations with exact design maintained
+  const classConfigs = {
     ADH: {
       name: 'Adhiṭṭhāna',
       nameSi: 'අධිඨාන',
-      cardBg: 'bg-gradient-to-b from-slate-50 to-white dark:from-slate-900 dark:to-slate-800',
-      badge: 'bg-slate-100 text-slate-900 dark:bg-slate-800 dark:text-slate-100 border border-slate-200 dark:border-slate-700',
-      progressColor: 'bg-slate-600 dark:bg-slate-400',
-      borderColor: 'border-t-slate-500',
-      buttonBg: 'bg-slate-800 hover:bg-slate-900 dark:bg-slate-700 dark:hover:bg-slate-600',
-      iconColor: 'text-slate-700 dark:text-slate-300',
-      description: '3-6 years'
+      description: '3-6 years',
+      bg: 'bg-white dark:bg-gray-800',
+      border: 'border-2 border-gray-200 dark:border-gray-700',
+      text: 'text-gray-900 dark:text-gray-100',
+      headingBg: 'bg-gray-100 dark:bg-gray-700',
+      statBg: 'bg-gray-50 dark:bg-gray-700',
+      icon: 'text-gray-400 dark:text-gray-500',
+      dotColor: 'text-gray-500',
+      primaryColor: '#374151'
     },
     MET: {
       name: 'Mettā',
       nameSi: 'මෙත්තා',
-      cardBg: 'bg-gradient-to-b from-amber-50 to-white dark:from-amber-900/30 dark:to-slate-800',
-      badge: 'bg-amber-100 text-amber-900 dark:bg-amber-900 dark:text-amber-50 border border-amber-200 dark:border-amber-800',
-      progressColor: 'bg-amber-500 dark:bg-amber-400',
-      borderColor: 'border-t-amber-500',
-      buttonBg: 'bg-amber-600 hover:bg-amber-700 dark:bg-amber-700 dark:hover:bg-amber-600',
-      iconColor: 'text-amber-600 dark:text-amber-400',
-      description: '7-10 years'
+      description: '7-10 years',
+      bg: 'bg-orange-50 dark:bg-orange-900/30',
+      border: 'border-2 border-orange-200 dark:border-orange-800',
+      text: 'text-orange-900 dark:text-orange-100',
+      headingBg: 'bg-orange-100 dark:bg-orange-800/40',
+      statBg: 'bg-orange-50 dark:bg-orange-900/40',
+      icon: 'text-orange-400 dark:text-orange-500',
+      dotColor: 'text-orange-500',
+      primaryColor: '#800000'
     },
     KHA: {
       name: 'Khanti',
       nameSi: 'ඛන්ති',
-      cardBg: 'bg-gradient-to-b from-yellow-50 to-white dark:from-yellow-900/30 dark:to-slate-800',
-      badge: 'bg-yellow-100 text-yellow-900 dark:bg-yellow-900 dark:text-yellow-50 border border-yellow-200 dark:border-yellow-800',
-      progressColor: 'bg-yellow-500 dark:bg-yellow-400',
-      borderColor: 'border-t-yellow-500',
-      buttonBg: 'bg-yellow-600 hover:bg-yellow-700 dark:bg-yellow-700 dark:hover:bg-yellow-600',
-      iconColor: 'text-yellow-600 dark:text-yellow-400',
-      description: '11-13 years'
+      description: '11-13 years',
+      bg: 'bg-yellow-50 dark:bg-yellow-900/30',
+      border: 'border-2 border-yellow-200 dark:border-yellow-800',
+      text: 'text-yellow-900 dark:text-yellow-100',
+      headingBg: 'bg-yellow-100 dark:bg-yellow-800/40',
+      statBg: 'bg-yellow-50 dark:bg-yellow-900/40',
+      icon: 'text-yellow-400 dark:text-yellow-500',
+      dotColor: 'text-yellow-500',
+      primaryColor: '#CA8A04'
     },
     NEK: {
       name: 'Nekkhamma',
       nameSi: 'නෙක්කම්ම',
-      cardBg: 'bg-gradient-to-b from-blue-50 to-white dark:from-blue-900/30 dark:to-slate-800',
-      badge: 'bg-blue-100 text-blue-900 dark:bg-blue-900 dark:text-blue-50 border border-blue-200 dark:border-blue-800',
-      progressColor: 'bg-blue-500 dark:bg-blue-400',
-      borderColor: 'border-t-blue-500',
-      buttonBg: 'bg-blue-600 hover:bg-blue-700 dark:bg-blue-700 dark:hover:bg-blue-600',
-      iconColor: 'text-blue-600 dark:text-blue-400',
-      description: '14+ years'
+      description: '14+ years',
+      bg: 'bg-blue-50 dark:bg-blue-900/30',
+      border: 'border-2 border-blue-200 dark:border-blue-800',
+      text: 'text-blue-900 dark:text-blue-100',
+      headingBg: 'bg-blue-100 dark:bg-blue-800/40',
+      statBg: 'bg-blue-50 dark:bg-blue-900/40',
+      icon: 'text-blue-400 dark:text-blue-500',
+      dotColor: 'text-blue-500',
+      primaryColor: '#1D4ED8'
     }
   };
 
@@ -120,703 +149,980 @@ const ClassGroups = () => {
     return token ? { Authorization: `Bearer ${token}` } : {};
   };
 
-  // Calculate total attendance for today
-  const getTodayTotalAttendance = (stats) => {
-    return Object.values(stats).reduce(
-      (sum, classStat) => sum + (classStat.todayAttendance || 0),
-      0
-    );
-  };
-
-  // Fetch class data with today's attendance
-  const fetchClassData = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-      
-      // Initialize stats with today's attendance field
-      const updatedStats = {
-        ADH: { totalStudents: 0, attendanceRate: 0, lastClassDate: null, todayAttendance: 0 },
-        MET: { totalStudents: 0, attendanceRate: 0, lastClassDate: null, todayAttendance: 0 },
-        KHA: { totalStudents: 0, attendanceRate: 0, lastClassDate: null, todayAttendance: 0 },
-        NEK: { totalStudents: 0, attendanceRate: 0, lastClassDate: null, todayAttendance: 0 }
-      };
-      
-      // Check if we have a valid token first
-      const token = localStorage.getItem('token');
-      if (!token) {
-        throw new Error("Authentication token is missing. Please log in again.");
-      }
-      
-      try {
-        // Step 1: Get student counts with better error handling
-        const studentCountsResponse = await axios.get('/api/stats/student-counts-by-class', {
-          headers: getAuthHeaders()
-        }).catch(err => {
-          if (err.response?.status === 401) {
-            console.error("Authentication failed: Token may be expired");
-            throw new Error("Your session has expired. Please log in again.");
-          }
-          console.warn("Failed to fetch student counts:", err);
-          return { data: { success: false } };
-        });
-        
-        if (studentCountsResponse.data && studentCountsResponse.data.success) {
-          // Update student counts
-          const counts = studentCountsResponse.data.data;
-          Object.keys(counts).forEach(code => {
-            if (updatedStats[code]) {
-              updatedStats[code].totalStudents = counts[code] || 0;
-            }
-          });
-          console.log("Student count data loaded:", counts);
-        } else {
-          // Fallback: fetch student list and count manually
-          try {
-            const studentsResponse = await axios.get('/api/students', {
-              headers: { Authorization: `Bearer ${localStorage.getItem('token')}` },
-              params: { limit: 500 }
-            });
-            
-            if (studentsResponse.data && studentsResponse.data.success) {
-              const students = studentsResponse.data.data || [];
-              const classCounts = { ADH: 0, MET: 0, KHA: 0, NEK: 0 };
-              
-              students.forEach(student => {
-                if (student.classCode && classCounts.hasOwnProperty(student.classCode)) {
-                  classCounts[student.classCode]++;
-                }
-              });
-              
-              Object.keys(classCounts).forEach(code => {
-                updatedStats[code].totalStudents = classCounts[code];
-              });
-              console.log("Student counts calculated:", classCounts);
-            } else {
-              throw new Error("Could not fetch students");
-            }
-          } catch (err) {
-            console.error("Could not determine student counts:", err);
-            // Use mock student counts
-            updatedStats.ADH.totalStudents = 25;
-            updatedStats.MET.totalStudents = 32;
-            updatedStats.KHA.totalStudents = 28;
-            updatedStats.NEK.totalStudents = 19;
-          }
-        }
-        
-        // Step 2: Get today's attendance - Fix to properly count present students
-        try {
-          const today = new Date().toISOString().split('T')[0];
-          console.log("Fetching attendance for date:", today);
-          
-          const todayAttendanceResponse = await axios.get(`/api/attendance/date/${today}`, {
-            headers: getAuthHeaders()
-          });
-          if (todayAttendanceResponse?.data?.success) {
-            const attendanceByClass = { ADH: 0, MET: 0, KHA: 0, NEK: 0 };
-            todayAttendanceResponse.data.data.forEach(record => {
-              if (record.status === 'present' && record.studentId?.classCode) {
-                attendanceByClass[record.studentId.classCode]++;
-              }
-            });
-            Object.keys(attendanceByClass).forEach(code => {
-              updatedStats[code].todayAttendance = attendanceByClass[code];
-            });
-          }
-        } catch (err) {
-          console.error("Error fetching today's attendance:", err);
-          // Keep values as is (zero) if there's an error
-        }
-        
-        // Step 3: Get attendance rates (keep this as is)
-        const attendanceRatesResponse = await axios.get('/api/stats/attendance-by-class', {
-          headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-        }).catch(err => {
-          console.warn("Failed to fetch attendance rates:", err);
-          return { data: { success: false } };
-        });
-        
-        if (attendanceRatesResponse.data && attendanceRatesResponse.data.success) {
-          const rates = attendanceRatesResponse.data.data;
-          Object.keys(rates).forEach(code => {
-            if (updatedStats[code]) {
-              updatedStats[code].attendanceRate = rates[code]?.rate || 0;
-              updatedStats[code].lastClassDate = rates[code]?.lastDate || null;
-            }
-          });
-          console.log("Attendance rates loaded:", rates);
-        } else {
-          // Use mock attendance rates
-          Object.keys(updatedStats).forEach(code => {
-            updatedStats[code].attendanceRate = Math.round(70 + Math.random() * 20); // 70-90%
-            updatedStats[code].lastClassDate = new Date().toISOString().split('T')[0];
-          });
-        }
-        
-        // Update class stats with all data
-        setClassStats(updatedStats);
-        
-      } catch (error) {
-        // Check for auth errors
-        if (error.message.includes("authentication") || error.message.includes("session")) {
-          // Handle authentication errors
-          setError(error.message);
-          // Optionally redirect to login
-          // setTimeout(() => navigate('/login'), 3000);
-        } else {
-          console.error('API error:', error);
-          // Use mock data for development
-          setClassStats({
-            ADH: { totalStudents: 25, attendanceRate: 86, lastClassDate: new Date().toISOString(), todayAttendance: 21 },
-            MET: { totalStudents: 32, attendanceRate: 78, lastClassDate: new Date().toISOString(), todayAttendance: 25 },
-            KHA: { totalStudents: 28, attendanceRate: 92, lastClassDate: new Date().toISOString(), todayAttendance: 24 },
-            NEK: { totalStudents: 19, attendanceRate: 85, lastClassDate: new Date().toISOString(), todayAttendance: 16 }
-          });
-        }
-      } finally {
-        setLoading(false);
-        setRefreshing(false);
-      }
-    } catch (error) {
-      console.error('Error in fetchClassData:', error);
-      setError(error.message || 'Failed to load class information. Using sample data for display.');
-      
-      // Fallback mock data
-      setClassStats({
-        ADH: { totalStudents: 25, attendanceRate: 86, lastClassDate: new Date().toISOString(), todayAttendance: 21 },
-        MET: { totalStudents: 32, attendanceRate: 78, lastClassDate: new Date().toISOString(), todayAttendance: 25 },
-        KHA: { totalStudents: 28, attendanceRate: 92, lastClassDate: new Date().toISOString(), todayAttendance: 24 },
-        NEK: { totalStudents: 19, attendanceRate: 85, lastClassDate: new Date().toISOString(), todayAttendance: 16 }
-      });
-    }
-  }, []);
-
-  // Load data on component mount
-  useEffect(() => {
-    fetchClassData();
-  }, [fetchClassData]);
-
-  // Add this effect to refresh data when the component gains focus
-  useEffect(() => {
-    // Initial load
-    fetchClassData();
-    
-    // Create event listeners for tab visibility
-    const handleVisibilityChange = () => {
-      if (document.visibilityState === 'visible') {
-        // Refresh data when tab becomes visible again
-        fetchClassData();
-      }
-    };
-    
-    // Listen for visibility changes (when user switches tabs and comes back)
-    document.addEventListener('visibilitychange', handleVisibilityChange);
-    
-    // Cleanup
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange);
-    };
-  }, [fetchClassData]);
-
-  // Handle refresh button click
-  const handleRefresh = useCallback(() => {
-    if (refreshing) return;
-    setRefreshing(true);
-    fetchClassData();
-  }, [refreshing, fetchClassData]);
-
-  // View students in a specific class
-  const handleViewStudents = useCallback(async (classCode) => {
-    try {
-      setLoadingStudents(true);
-      setSelectedClass(classCode);
-      setShowStudentsModal(true);
-      
-      try {
-        // Fetch students by class code
-        const response = await axios.get(`/api/students`, {
-          headers: {
-            'Authorization': `Bearer ${localStorage.getItem('token')}`
-          },
-          params: {
-            classCode,
-            limit: 100
-          }
-        });
-        
-        if (response.data.success) {
-          setClassStudents(response.data.data || []);
-          console.log(`Loaded ${response.data.data?.length || 0} students for class ${classCode}`);
-        } else {
-          throw new Error('Failed to fetch students');
-        }
-      } catch (apiError) {
-        console.error('API error when fetching students:', apiError);
-        
-        // Generate some mock students for development
-        const mockStudents = Array.from({ length: 10 }, (_, i) => ({
-          _id: `mock-${i}`,
-          studentId: `SP2023${classCode}${String(i+1).padStart(3, '0')}`,
-          name: {
-            en: `${classCode} Student ${i+1}`,
-            si: `${classCode} සිසුවා ${i+1}`
-          },
-          gender: Math.random() > 0.5 ? 'M' : 'F',
-          classCode,
-          profileImage: Math.random() > 0.3 ? {
-            url: `https://i.pravatar.cc/300?img=${Math.floor(Math.random() * 70)}`
-          } : null
-        }));
-        
-        setClassStudents(mockStudents);
-      }
-    } catch (err) {
-      console.error('Error preparing student data:', err);
-      setClassStudents([]);
-    } finally {
-      setLoadingStudents(false);
-    }
-  }, []);
-
-  // Close student modal
-  const closeStudentsModal = useCallback(() => {
-    setShowStudentsModal(false);
-    setTimeout(() => {
-      setSelectedClass(null);
-      setClassStudents([]);
-    }, 300);
-  }, []);
-
-  // Handle class attendance button click
-  const handleClassAttendance = (classCode) => {
-    navigate(`/admin/attendance?classCode=${classCode}`);
-  };
-
-  // View all students in a class
-  const handleViewAllStudents = (classCode) => {
-    closeStudentsModal(); // Close the modal first
-    setTimeout(() => {
-      navigate(`/admin/students?classCode=${classCode}`);
-    }, 300);
-  };
-
-  // Helper for name display
+  // Helper function to safely display potentially multilingual text
   const safeDisplayName = (nameObj) => {
     if (!nameObj) return '';
     if (typeof nameObj === 'string') return nameObj;
     return nameObj.en || nameObj.si || '';
   };
 
-  // Calculate summary statistics
-  const totalStudents = Object.values(classStats).reduce(
-    (sum, stats) => sum + (stats.totalStudents || 0), 0
-  );
-  
-  const todayTotalAttendance = Object.values(classStats).reduce(
-    (sum, stats) => sum + (stats.todayAttendance || 0), 0
-  );
-  
-  const totalClasses = Object.keys(classStats).length;
-  const averageAttendance = totalClasses > 0
-    ? Math.round(Object.values(classStats).reduce(
-      (sum, stats) => sum + (stats.attendanceRate || 0), 0
-    ) / totalClasses)
-    : 0;
+  // Enhanced countdown calculation with proper time handling - FIXED
+  const calculateDetailedCountdown = (targetDate, targetTime = '08:00') => {
+    if (!targetDate) return { days: 0, hours: 0, minutes: 0, seconds: 0, expired: true };
+    
+    const now = new Date();
+    
+    // Create target datetime by combining date and time
+    const target = new Date(targetDate);
+    
+    // Parse time and set on target date
+    if (targetTime) {
+      const [hours, minutes] = targetTime.split(':').map(Number);
+      target.setHours(hours, minutes, 0, 0);
+    } else {
+      target.setHours(8, 0, 0, 0); // Default to 8 AM
+    }
+    
+    const diffTime = target.getTime() - now.getTime();
+    
+    if (diffTime <= 0) return { days: 0, hours: 0, minutes: 0, seconds: 0, expired: true };
+    
+    const days = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    const hours = Math.floor((diffTime % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+    const minutes = Math.floor((diffTime % (1000 * 60 * 60)) / (1000 * 60));
+    const seconds = Math.floor((diffTime % (1000 * 60)) / 1000);
+    
+    return { days, hours, minutes, seconds, expired: false };
+  };
 
-  // Card skeleton for loading state
-  const CardSkeleton = () => (
-    <div className="rounded-lg border border-slate-200 dark:border-slate-800 overflow-hidden shadow-sm">
-      <Skeleton className="h-[260px] w-full" />
-    </div>
-  );
+  // Format countdown text
+  const formatCountdownText = (countdown) => {
+    if (!countdown || countdown.expired) return null;
+    
+    const { days, hours, minutes } = countdown;
+    
+    if (days > 0) return `${days} day${days > 1 ? 's' : ''} ${hours}h ${minutes}m`;
+    if (hours > 0) return `${hours}h ${minutes}m`;
+    return `${minutes} minute${minutes > 1 ? 's' : ''}`;
+  };
+
+  // Get next Sunday
+  const getNextSunday = () => {
+    const now = new Date();
+    const nextSunday = new Date(now);
+    nextSunday.setDate(now.getDate() + (7 - now.getDay()) % 7);
+    if (nextSunday.getDay() !== 0) {
+      nextSunday.setDate(nextSunday.getDate() + 7);
+    }
+    return nextSunday;
+  };
+
+  // Calculate next Poya day (enhanced with proper 2025 dates)
+  const calculateNextPoyaDay = () => {
+    const poyaDays2025 = [
+      { date: '2025-01-13', name: 'Duruthu Poya' },
+      { date: '2025-02-12', name: 'Navam Poya' },
+      { date: '2025-03-14', name: 'Madin Poya' },
+      { date: '2025-04-13', name: 'Bak Poya' },
+      { date: '2025-05-12', name: 'Vesak Poya' },
+      { date: '2025-06-11', name: 'Poson Poya' },
+      { date: '2025-07-10', name: 'Esala Poya' },
+      { date: '2025-08-09', name: 'Nikini Poya' },
+      { date: '2025-09-07', name: 'Binara Poya' },
+      { date: '2025-10-06', name: 'Vap Poya' },
+      { date: '2025-11-05', name: 'Il Poya' },
+      { date: '2025-12-04', name: 'Unduvap Poya' }
+    ];
+
+    const now = new Date();
+    const nextPoya = poyaDays2025.find(poya => new Date(poya.date) > now);
+    return nextPoya || poyaDays2025[0];
+  };
+
+  // Update countdown every second
+  useEffect(() => {
+    const updateCountdown = () => {
+      const classCountdown = calculateDetailedCountdown(nextClass.date, nextClass.time);
+      const poyaCountdown = calculateDetailedCountdown(nextPoyaDay.date, '00:00'); // Poya starts at midnight
+      
+      setCountdown({
+        class: classCountdown,
+        poya: poyaCountdown
+      });
+    };
+
+    updateCountdown(); // Initial calculation
+    const interval = setInterval(updateCountdown, 1000);
+
+    return () => clearInterval(interval);
+  }, [nextClass.date, nextClass.time, nextPoyaDay.date]);
+
+  // -------- REMOVING ICONS AND FIXING ATTENDANCE COUNT --------
+
+  // First, fix the fetch logic for class data to properly calculate attendance counts
+  const fetchClassData = useCallback(async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const token = localStorage.getItem('token');
+      if (!token) {
+        throw new Error("Authentication required. Please log in.");
+      }
+
+      // Initialize class data
+      const updatedClassData = {
+        ADH: { totalStudents: 0, lastAttendance: 0 },
+        MET: { totalStudents: 0, lastAttendance: 0 },
+        KHA: { totalStudents: 0, lastAttendance: 0 },
+        NEK: { totalStudents: 0, lastAttendance: 0 }
+      };
+
+      // Step 1: Fetch total student counts by class
+      try {
+        const studentsResponse = await axios.get('/api/students', {
+          headers: getAuthHeaders(),
+          params: { limit: 1000 }
+        });
+
+        if (studentsResponse.data.success) {
+          const students = studentsResponse.data.data || [];
+          
+          // Count students by class
+          students.forEach(student => {
+            if (student.classCode && updatedClassData[student.classCode]) {
+              updatedClassData[student.classCode].totalStudents++;
+            }
+          });
+        }
+      } catch (studentError) {
+        console.error('Error fetching students:', studentError);
+        throw new Error('Could not fetch student data from database');
+      }
+
+      // Step 2: FIXED - Use direct attendance endpoint to get latest attendance
+      try {
+        // Get today's date in YYYY-MM-DD format
+        const today = new Date().toISOString().split('T')[0];
+        
+        // Try to find attendance data for each class for the most recent Sunday
+        const lastSundayDate = getLastSunday();
+        const formattedLastSunday = lastSundayDate.toISOString().split('T')[0];
+        
+        console.log(`Fetching attendance for last Sunday: ${formattedLastSunday}`);
+        
+        // Process each class to get attendance data
+        for (const classCode of Object.keys(updatedClassData)) {
+          try {
+            const attendanceResponse = await axios.get(`/api/attendance/date/${formattedLastSunday}`, {
+              headers: getAuthHeaders(),
+              params: { classCode }
+            });
+
+            if (attendanceResponse.data.success) {
+              const attendanceRecords = attendanceResponse.data.data || [];
+              const presentCount = attendanceRecords.filter(record => 
+                record.status === 'present' || record.status === 'late'
+              ).length;
+              
+              updatedClassData[classCode].lastAttendance = presentCount;
+              console.log(`Class ${classCode}: ${presentCount} students present on ${formattedLastSunday}`);
+            }
+          } catch (err) {
+            console.warn(`Could not fetch attendance for class ${classCode}, trying previous Sunday`);
+            
+            // If no data for last Sunday, try the previous Sunday
+            const previousSundayDate = new Date(lastSundayDate);
+            previousSundayDate.setDate(previousSundayDate.getDate() - 7);
+            const formattedPreviousSunday = previousSundayDate.toISOString().split('T')[0];
+            
+            try {
+              const attendanceResponse = await axios.get(`/api/attendance/date/${formattedPreviousSunday}`, {
+                headers: getAuthHeaders(),
+                params: { classCode }
+              });
+              
+              if (attendanceResponse.data.success) {
+                const attendanceRecords = attendanceResponse.data.data || [];
+                const presentCount = attendanceRecords.filter(record => 
+                  record.status === 'present' || record.status === 'late'
+                ).length;
+                
+                updatedClassData[classCode].lastAttendance = presentCount;
+                console.log(`Class ${classCode}: ${presentCount} students present on previous Sunday ${formattedPreviousSunday}`);
+              }
+            } catch (prevErr) {
+              console.warn(`Could not fetch attendance for class ${classCode} on previous Sunday either`);
+            }
+          }
+        }
+      } catch (attendanceError) {
+        console.warn('Could not fetch attendance data:', attendanceError.message);
+      }
+
+      setClassData(updatedClassData);
+      
+    } catch (error) {
+      console.error('Error fetching class data:', error);
+      setError(error.message || 'Failed to fetch class data from database');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  }, []);
+
+  // Helper function to get the most recent Sunday
+  const getLastSunday = () => {
+    const today = new Date();
+    const day = today.getDay();
+    
+    // If today is Sunday, return today
+    if (day === 0) return today;
+    
+    // Otherwise, go back to the most recent Sunday
+    const lastSunday = new Date(today);
+    lastSunday.setDate(today.getDate() - day);
+    
+    return lastSunday;
+  };
+
+  // Updated fetchNextClassData function to handle missing endpoints
+  const fetchNextClassData = useCallback(async () => {
+    try {
+      // Check localStorage first for persistence
+      const savedNextClass = localStorage.getItem('nextClass');
+      const savedNextPoya = localStorage.getItem('nextPoyaDay');
+
+      if (savedNextClass) {
+        const parsedClass = JSON.parse(savedNextClass);
+        setNextClass(parsedClass);
+      } else {
+        // Set default next class (next Sunday)
+        const nextSunday = getNextSunday();
+        const defaultClass = {
+          date: nextSunday.toISOString().split('T')[0],
+          time: '08:00',
+          location: 'Main Hall',
+          topic: 'Weekly Dharma Session'
+        };
+        setNextClass(defaultClass);
+        localStorage.setItem('nextClass', JSON.stringify(defaultClass));
+      }
+
+      if (savedNextPoya) {
+        const parsedPoya = JSON.parse(savedNextPoya);
+        setNextPoyaDay(parsedPoya);
+      } else {
+        // Set default next poya
+        const nextPoya = calculateNextPoyaDay();
+        const defaultPoya = {
+          date: nextPoya.date,
+          name: nextPoya.name,
+          description: 'Full Moon Day - Sacred meditation and prayer session'
+        };
+        setNextPoyaDay(defaultPoya);
+        localStorage.setItem('nextPoyaDay', JSON.stringify(defaultPoya));
+      }
+
+      // REMOVED API calls to non-existent endpoints
+      // Instead, we rely solely on localStorage or default values
+      
+    } catch (error) {
+      console.error('Error setting up next class data:', error);
+      // Fallback to defaults
+      const nextSunday = getNextSunday();
+      const nextPoya = calculateNextPoyaDay();
+      
+      setNextClass({
+        date: nextSunday.toISOString().split('T')[0],
+        time: '08:00',
+        location: 'Main Hall',
+        topic: 'Weekly Dharma Session'
+      });
+      
+      setNextPoyaDay({
+        date: nextPoya.date,
+        name: nextPoya.name,
+        description: 'Full Moon Day - Sacred meditation and prayer session'
+      });
+    }
+  }, []);
+
+  // Save next class data - FIXED with immediate UI update
+  const saveNextClass = async () => {
+    setSavingClass(true);
+    try {
+      // Update localStorage immediately for instant UI feedback
+      localStorage.setItem('nextClass', JSON.stringify(nextClass));
+      
+      // Try to save to API
+      try {
+        await axios.post('/api/schedule/next-class', nextClass, {
+          headers: getAuthHeaders()
+        });
+        console.log('Next class saved to API successfully');
+      } catch (apiError) {
+        console.log('API save failed, but localStorage updated:', apiError.message);
+      }
+      
+      setEditingClass(false);
+      
+      // Show success message (optional)
+      console.log('Next class updated successfully');
+    } catch (error) {
+      console.error('Error saving next class:', error);
+      setEditingClass(false);
+    } finally {
+      setSavingClass(false);
+    }
+  };
+
+  // Save next poya data - FIXED with immediate UI update
+  const saveNextPoya = async () => {
+    setSavingPoya(true);
+    try {
+      // Update localStorage immediately for instant UI feedback
+      localStorage.setItem('nextPoyaDay', JSON.stringify(nextPoyaDay));
+      
+      // Try to save to API
+      try {
+        await axios.post('/api/schedule/next-poya', nextPoyaDay, {
+          headers: getAuthHeaders()
+        });
+        console.log('Next poya saved to API successfully');
+      } catch (apiError) {
+        console.log('API save failed, but localStorage updated:', apiError.message);
+      }
+      
+      setEditingPoya(false);
+      
+      // Show success message (optional)
+      console.log('Next poya updated successfully');
+    } catch (error) {
+      console.error('Error saving next poya:', error);
+      setEditingPoya(false);
+    } finally {
+      setSavingPoya(false);
+    }
+  };
+
+  // Load data on component mount
+  useEffect(() => {
+    fetchClassData();
+    fetchNextClassData();
+  }, [fetchClassData, fetchNextClassData]);
+
+  // Handle refresh
+  const handleRefresh = useCallback(() => {
+    if (refreshing) return;
+    setRefreshing(true);
+    fetchClassData();
+    fetchNextClassData();
+  }, [refreshing, fetchClassData, fetchNextClassData]);
+
+  // Handle view students - Modal style like reference code
+  const handleViewStudents = async (classCode) => {
+    try {
+      setLoadingStudents(true);
+      setSelectedClass(classCode);
+      setShowStudentsModal(true);
+      
+      // Fetch students for the selected class
+      const response = await axios.get(`/api/students?classCode=${classCode}&limit=100`, {
+        headers: getAuthHeaders()
+      });
+      
+      if (response.data.success) {
+        setClassStudents(response.data.data || []);
+      } else {
+        console.error('Failed to fetch students for class:', classCode);
+        setClassStudents([]);
+      }
+    } catch (err) {
+      console.error('Error fetching class students:', err);
+      setClassStudents([]);
+    } finally {
+      setLoadingStudents(false);
+    }
+  };
+
+  // Close students modal
+  const closeStudentsModal = () => {
+    setShowStudentsModal(false);
+    setSelectedClass(null);
+    setClassStudents([]);
+  };
+
+  // Handle attendance navigation - FIXED routing
+  const handleAttendance = (classCode) => {
+    navigate(`/admin/attendance?classCode=${classCode}`);
+  };
+
+  // Animated countdown component - FIXED: Unique keys to prevent conflicts between multiple countdown instances
+  const CountdownDisplay = ({ countdown, expired, label }) => {
+    if (expired) {
+      return (
+        <div className="text-center">
+          <span className="text-sm font-medium opacity-75">{label} has passed</span>
+        </div>
+      );
+    }
+
+    // Generate unique keys that prevent conflicts between different countdown instances
+    // Even if "Next Class" and "Next Poya Day" both show "3 days", the keys will be different:
+    // "Class-days-3" vs "Poya Day-days-3"
+    const uniqueKey = (unit, value) => `${label}-${unit}-${value}`;
+
+    return (
+      <div className="grid grid-cols-4 gap-2 text-center">
+        <motion.div 
+          key={uniqueKey('days', countdown.days)}
+          initial={{ scale: 1.1 }}
+          animate={{ scale: 1 }}
+          className="bg-white bg-opacity-20 rounded-lg p-2"
+        >
+          <div className="text-lg font-bold">{countdown.days}</div>
+          <div className="text-xs opacity-75">Day{countdown.days !== 1 ? 's' : ''}</div>
+        </motion.div>
+        <motion.div 
+          key={uniqueKey('hours', countdown.hours)}
+          initial={{ scale: 1.1 }}
+          animate={{ scale: 1 }}
+          className="bg-white bg-opacity-20 rounded-lg p-2"
+        >
+          <div className="text-lg font-bold">{countdown.hours}</div>
+          <div className="text-xs opacity-75">Hour{countdown.hours !== 1 ? 's' : ''}</div>
+        </motion.div>
+        <motion.div 
+          key={uniqueKey('minutes', countdown.minutes)}
+          initial={{ scale: 1.1 }}
+          animate={{ scale: 1 }}
+          className="bg-white bg-opacity-20 rounded-lg p-2"
+        >
+          <div className="text-lg font-bold">{countdown.minutes}</div>
+          <div className="text-xs opacity-75">Min{countdown.minutes !== 1 ? 's' : ''}</div>
+        </motion.div>
+        <motion.div 
+          key={uniqueKey('seconds', countdown.seconds)}
+          initial={{ scale: 1.1 }}
+          animate={{ scale: 1 }}
+          className="bg-white bg-opacity-20 rounded-lg p-2"
+        >
+          <div className="text-lg font-bold">{countdown.seconds}</div>
+          <div className="text-xs opacity-75">Sec{countdown.seconds !== 1 ? 's' : ''}</div>
+        </motion.div>
+      </div>
+    );
+  };
 
   return (
-    <div className="container p-6 mx-auto">
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between mb-6">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">Class Groups</h1>
-          <p className="text-muted-foreground mt-1">
-            Manage class groups and view statistics
-          </p>
-        </div>
-
-        <div className="mt-4 md:mt-0 space-x-2">
-          <Button 
-            variant="outline"
-            onClick={handleRefresh}
-            disabled={refreshing}
-            className="relative"
-          >
-            <FaSync className={`mr-2 h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
-            {refreshing ? 'Refreshing...' : 'Refresh'}
-          </Button>
-          
-          <Button 
-            variant="outline" 
-            onClick={() => navigate('/admin/attendance')}
-          >
-            <FaCalendarCheck className="mr-2 h-4 w-4" />
-            Mark Attendance
-          </Button>
-        </div>
-      </div>
-
-      {/* Error display */}
-      {error && (
-        <motion.div 
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-destructive/15 border-l-4 border-destructive p-4 mb-6 rounded-md shadow-sm"
-        >
-          <div className="flex items-start">
-            <FaExclamationTriangle className="text-destructive mt-0.5 mr-3 flex-shrink-0" />
-            <div>
-              <h3 className="font-medium text-destructive">Notice</h3>
-              <p className="mt-1 text-destructive/80">{error}</p>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="mt-2 border-destructive/30 text-destructive"
-                onClick={handleRefresh}
-              >
-                <FaSync className="mr-2 h-3 w-3" /> Try Again
-              </Button>
-            </div>
+    <div className="py-6">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Header */}
+        <div className="flex justify-between items-center mb-6">
+          <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
+            Class Groups
+          </h1>
+          <div className="space-x-2">
+            <button
+              onClick={handleRefresh}
+              className="px-3 py-2 bg-gray-100 hover:bg-gray-200 dark:bg-gray-700 dark:hover:bg-gray-600 rounded-md text-gray-800 dark:text-gray-200 flex items-center"
+              disabled={refreshing}
+            >
+              <FaSync className={`mr-2 ${refreshing ? 'animate-spin' : ''}`} /> 
+              {refreshing ? 'Refreshing...' : 'Refresh Data'}
+            </button>
+            <button 
+              onClick={() => window.print()}
+              className="px-4 py-2 bg-gray-800 text-white rounded hover:bg-gray-700 transition-colors"
+            >
+              Export Report
+            </button>
           </div>
-        </motion.div>
-      )}
-
-      {/* Summary Stats Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-6">
-        {/* Total Students Card */}
-        <Card className="shadow-md">
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <span>Total Students</span>
-              <FaUserFriends className="h-5 w-5 text-primary" />
-            </CardTitle>
-            <CardDescription>Across all classes</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex items-baseline">
-              <span className="text-3xl font-bold text-gray-900 dark:text-white">{totalStudents}</span>
-              <span className="text-gray-500 dark:text-gray-400 mx-1 font-medium"> / </span>
-              <span className="text-xl font-semibold text-green-600 dark:text-green-400">
-                {todayTotalAttendance}
-              </span>
-              <span className="ml-2 text-sm text-muted-foreground">present today</span>
-            </div>
-            
-            <div className="mt-3 w-full h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-              <div 
-                className="h-full rounded-full bg-green-500 dark:bg-green-600"
-                style={{ 
-                  width: totalStudents > 0 
-                    ? `${Math.min(100, (todayTotalAttendance / totalStudents) * 100)}%` 
-                    : '0%' 
-                }}
-              />
-            </div>
-            
-            <Link
-              to="/admin/students"
-              className="text-sm text-blue-600 dark:text-blue-400 hover:underline flex items-center mt-3 group"
-            >
-              View all students
-              <FaArrowRight className="ml-1 opacity-0 group-hover:opacity-100 transform translate-x-0 group-hover:translate-x-1 transition-all" size={10} />
-            </Link>
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-md">
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <span>Average Attendance</span>
-              <FaCalendarCheck className="h-5 w-5 text-primary" />
-            </CardTitle>
-            <CardDescription>Across all active classes</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="text-3xl font-bold text-gray-900 dark:text-white">{averageAttendance}%</div>
-            <Progress value={averageAttendance} className="h-2 mt-3" />
-          </CardContent>
-        </Card>
-
-        <Card className="shadow-md">
-          <CardHeader>
-            <CardTitle className="flex items-center justify-between">
-              <span>Sunday Classes</span>
-              <span className="h-5 w-5 flex items-center justify-center rounded-full bg-green-100 text-green-600">4</span>
-            </CardTitle>
-            <CardDescription>Age-based groups</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Link
-              to="/admin/attendance"
-              className="text-sm text-blue-600 dark:text-blue-400 hover:underline flex items-center mt-2 group"
-            >
-              Mark attendance
-              <FaArrowRight className="ml-1 opacity-0 group-hover:opacity-100 transform translate-x-0 group-hover:translate-x-1 transition-all" size={10} />
-            </Link>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Class Cards */}
-      <h2 className="text-2xl font-semibold mb-6 text-gray-900 dark:text-gray-100">Class Overview</h2>
-      {loading ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-          <CardSkeleton />
-          <CardSkeleton />
-          <CardSkeleton />
-          <CardSkeleton />
         </div>
-      ) : (
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-          {Object.keys(classStyles).map((classCode, index) => {
-            const style = classStyles[classCode];
-            const stats = classStats[classCode] || { totalStudents: 0, attendanceRate: 0, todayAttendance: 0 };
-            
-            return (
-              <motion.div
-                key={classCode}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.4, delay: index * 0.1 }}
-              >
-                <Card 
-                  className={`overflow-hidden border-t-4 ${style.borderColor} shadow-sm hover:shadow-md transition-all duration-200`}
+
+        {/* Error display */}
+        {error && (
+          <motion.div 
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-red-50 border border-red-200 text-red-800 rounded-md p-4 mb-4"
+          >
+            <div className="flex items-start">
+              <FaExclamationTriangle className="text-red-500 mt-0.5 mr-3 flex-shrink-0" />
+              <div>
+                <h3 className="text-sm font-medium">Error</h3>
+                <div className="mt-2 text-sm text-red-700">{error}</div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Class Cards */}
+        {loading ? (
+          <div className="flex justify-center items-center h-64">
+            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {Object.keys(classConfigs).map((classCode) => {
+              const config = classConfigs[classCode];
+              const data = classData[classCode] || { totalStudents: 0, lastAttendance: 0 };
+              
+              return (
+                <motion.div
+                  key={classCode}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.4, delay: Object.keys(classConfigs).indexOf(classCode) * 0.1 }}
                 >
-                  <div className={style.cardBg}>
-                    <CardHeader className="pb-1 pt-3 px-3">
-                      <div className="flex justify-between items-center">
-                        <Badge variant="outline" className={`text-xs ${style.badge}`}>
-                          {style.description}
-                        </Badge>
-                        <FaUserGraduate className={`h-4 w-4 ${style.iconColor}`} />
-                      </div>
-                      <CardTitle className="mt-3 flex flex-col">
-                        <span className="text-base text-gray-900 dark:text-white">{style.name}</span>
-                        <span className="text-muted-foreground text-xs font-normal mt-0.5">{style.nameSi}</span>
-                      </CardTitle>
-                    </CardHeader>
-
-                    <CardContent className="pb-1 px-3">
-                      <div className="space-y-3">
-                        {/* Student count with today's attendance section */}
-                        <div className="flex justify-between items-center">
-                          <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Students</span>
-                          <Badge variant="outline" className="text-xs bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-200">
-                            <span className="font-medium">{stats.totalStudents}</span>
-                            <span className="text-gray-500 dark:text-gray-400 mx-0.5">/</span>
-                            <span className={stats.todayAttendance > 0 ? 'font-medium text-green-600 dark:text-green-400' : 'text-gray-500 dark:text-gray-400'}>
-                              {stats.todayAttendance}
-                            </span>
-                            <span className="ml-0.5 text-xs text-gray-500 dark:text-gray-400">today</span>
-                          </Badge>
-                        </div>
-                        
-                        {/* Attendance Rate section with progress bar */}
-                        <div className="space-y-1">
-                          <div className="flex justify-between items-center">
-                            <span className="text-xs font-medium text-gray-700 dark:text-gray-300">Attendance Rate</span>
-                            <span className="text-xs font-semibold text-gray-900 dark:text-white">{stats.attendanceRate || 0}%</span>
-                          </div>
-                          <Progress 
-                            value={stats.attendanceRate || 0} 
-                            className={`h-1 ${style.progressColor}`} 
-                          />
-                        </div>
-                        
-                        {/* Teacher assignment */}
-                        <div className="flex justify-between items-center">
-                          <div className="text-xs">
-                            <div className="text-muted-foreground font-medium">Teacher</div>
-                            <div className="font-semibold text-gray-800 dark:text-gray-200">
-                              {teacherAssignments[classCode]?.name || 'Not Assigned'}
-                            </div>
-                          </div>
-                          
-                          {stats.lastClassDate && (
-                            <Badge variant="secondary" className="text-xs">
-                              Last: {new Date(stats.lastClassDate).toLocaleDateString('en-US', {month: '2-digit', day: '2-digit'})}
-                            </Badge>
-                          )}
-                        </div>
-                      </div>
-                    </CardContent>
-
-                    <CardFooter className="flex justify-between gap-1 pt-1 pb-3 px-3">
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="flex-1 text-xs"
-                        onClick={() => handleViewStudents(classCode)}
-                      >
-                        Students
-                      </Button>
-                      <Button 
-                        size="sm" 
-                        className={`flex-1 text-white text-xs ${style.buttonBg}`}
-                        onClick={() => handleClassAttendance(classCode)}
-                      >
-                        <FaCalendarCheck className="mr-1 h-3 w-3" />
-                        Attendance
-                      </Button>
-                    </CardFooter>
-                  </div>
-                </Card>
-              </motion.div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Students Modal - FULL WIDTH with alternating row colors */}
-      <Dialog open={showStudentsModal} onOpenChange={closeStudentsModal}>
-        <DialogContent className="max-w-[95%] p-0 gap-0 w-[98vw] md:w-[95vw]">
-          <DialogHeader className="p-6 border-b">
-            <DialogTitle className="flex items-center gap-2 text-xl font-bold text-gray-900 dark:text-white">
-              {selectedClass && (
-                <>
-                  <span>{classStyles[selectedClass]?.name} Students</span>
-                  <Badge variant="outline" className={selectedClass && classStyles[selectedClass]?.badge}>
-                    {classStats[selectedClass]?.totalStudents || 0} Students
-                  </Badge>
-                </>
-              )}
-            </DialogTitle>
-            <DialogDescription className="text-gray-600 dark:text-gray-300">
-              {selectedClass && classStyles[selectedClass]?.nameSi} - {selectedClass && classStyles[selectedClass]?.description}
-            </DialogDescription>
-          </DialogHeader>
-
-          {/* Modal Body - WIDER table with alternating row colors */}
-          <div className="p-6 overflow-x-auto" style={{ maxHeight: "65vh", overflowY: "auto" }}>
-            {loadingStudents ? (
-              <div className="flex flex-col items-center justify-center py-12">
-                <div className="h-10 w-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mb-4"></div>
-                <p className="text-blue-600 dark:text-blue-300">Loading students...</p>
-              </div>
-            ) : classStudents.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12">
-                <div className="h-16 w-16 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center mb-4">
-                  <FaUserGraduate className="h-8 w-8 text-blue-400" />
-                </div>
-                <p className="text-lg font-bold text-blue-700 dark:text-blue-200">No students found in this class</p>
-                <p className="text-blue-400 mt-1">Try adding students to this class</p>
-              </div>
-            ) : (
-              <table className="w-full border-collapse table-fixed">
-                <colgroup>
-                  <col style={{ width: '40%' }} />
-                  <col style={{ width: '25%' }} />
-                  <col style={{ width: '15%' }} />
-                  <col style={{ width: '20%' }} />
-                </colgroup>
-                <thead>
-                  <tr className="bg-gray-100 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
-                    <th className="px-6 py-4 text-left text-sm font-bold text-gray-700 dark:text-gray-200 uppercase tracking-wider">Name</th>
-                    <th className="px-6 py-4 text-left text-sm font-bold text-gray-700 dark:text-gray-200 uppercase tracking-wider">Student ID</th>
-                    <th className="px-6 py-4 text-left text-sm font-bold text-gray-700 dark:text-gray-200 uppercase tracking-wider">Gender</th>
-                    <th className="px-6 py-4 text-right text-sm font-bold text-gray-700 dark:text-gray-200 uppercase tracking-wider">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {classStudents.map((student, idx) => (
-                    <tr
-                      key={student._id}
-                      className={`border-b border-gray-100 dark:border-gray-800 ${
-                        idx % 2 === 0 
-                        ? 'bg-white dark:bg-gray-900' 
-                        : 'bg-gray-50 dark:bg-gray-850'
-                      } hover:bg-blue-50 dark:hover:bg-blue-900/20`}
-                    >
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="flex items-center">
-                          <div className="flex-shrink-0 h-12 w-12">
-                            {student.profileImage?.url ? (
-                              <img 
-                                className="h-12 w-12 rounded-full object-cover border-2 border-white dark:border-gray-700 shadow-sm" 
-                                src={student.profileImage.url} 
-                                alt={safeDisplayName(student.name)}
-                              />
-                            ) : (
-                              <div className="h-12 w-12 rounded-full bg-blue-100 dark:bg-blue-900 border-2 border-white dark:border-gray-700 flex items-center justify-center shadow-sm">
-                                <span className="text-lg font-bold text-blue-500 dark:text-blue-300">
-                                  {safeDisplayName(student.name).charAt(0) || "?"}
-                                </span>
-                              </div>
-                            )}
-                          </div>
-                          <div className="ml-4">
-                            <div className="text-base font-semibold text-gray-900 dark:text-white">
-                              {safeDisplayName(student.name)}
-                            </div>
-                            <div className="text-sm text-gray-500 dark:text-gray-400">
-                              {typeof student.name === 'object' && student.name?.si ? student.name.si : ''}
-                            </div>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        <span className="inline-block bg-blue-50 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300 rounded px-3 py-1 text-sm font-mono border border-blue-100 dark:border-blue-800">
-                          {student.studentId}
+                  <div 
+                    className={`rounded-lg shadow-md overflow-hidden ${config.bg} ${config.border} h-full flex flex-col`}
+                  >
+                    {/* Card Header */}
+                    <div className={`px-4 py-5 ${config.headingBg} border-b border-opacity-60`}>
+                      <div className={`text-xl font-semibold ${config.text}`}>
+                        {config.name} 
+                        <span className="block text-sm mt-1 font-normal">
+                          {config.nameSi}
                         </span>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {student.gender === "M" ? (
-                          <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300">
-                            <span className="h-2 w-2 rounded-full bg-green-500 mr-2"></span>
-                            Male
-                          </span>
-                        ) : student.gender === "F" ? (
-                          <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-pink-100 text-pink-800 dark:bg-pink-900/40 dark:text-pink-300">
-                            <span className="h-2 w-2 rounded-full bg-pink-500 mr-2"></span>
-                            Female
-                          </span>
-                        ) : (
-                          <span className="inline-block px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300">
-                            Unknown
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right">
-                        <Button
-                          size="default"
-                          variant="outline"
-                          className="border-blue-400 text-blue-700 dark:text-blue-300 hover:bg-blue-100 dark:hover:bg-blue-900"
-                          onClick={() => navigate(`/admin/students/${student._id}`)}
-                        >
-                          View Profile
-                        </Button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
+                      </div>
+                      <div className="text-sm mt-1 text-gray-600 dark:text-gray-400">
+                        {config.description}
+                      </div>
+                    </div>
+                    
+                    {/* Card Body - FIXED: Added flex-1 and proper padding */}
+                    <div className="p-4 flex-1 flex flex-col">
+                      {/* Student Count Display - Enhanced Format */}
+                      <div className={`p-3 rounded-md ${config.statBg} mb-4 flex-shrink-0`}>
+                        <div className="flex items-center justify-between">
+                          <div className={`${config.icon}`}>
+                            <FaUserGraduate size={24} />
+                          </div>
+                          <div className="text-right">
+                            <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Students</p>
+                            <p className={`text-lg font-bold ${config.text}`}>
+                              Total: {data.totalStudents} / Present: {data.lastAttendance}
+                            </p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                              {data.totalStudents > 0 
+                                ? `${Math.round((data.lastAttendance / data.totalStudents) * 100)}% attendance`
+                                : 'No students registered'
+                              }
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      {/* Actions - FIXED: Better button layout with proper spacing */}
+                      <div className="mt-auto">
+                        <div className="grid grid-cols-2 gap-2">
+                          <button 
+                            onClick={() => handleViewStudents(classCode)}
+                            className="w-full px-3 py-2 bg-gray-800 dark:bg-gray-700 hover:bg-gray-700 dark:hover:bg-gray-600 text-white rounded flex items-center justify-center transition-colors text-sm font-medium"
+                          >
+                            <FaEye className="mr-1" size={14} />
+                            Students
+                          </button>
+                          <button 
+                            onClick={() => handleAttendance(classCode)}
+                            className="w-full px-3 py-2 bg-blue-600 dark:bg-blue-700 hover:bg-blue-700 dark:hover:bg-blue-600 text-white rounded flex items-center justify-center transition-colors text-sm font-medium"
+                          >
+                            <FaCalendarCheck className="mr-1" size={14} />
+                            Attendance
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </motion.div>
+              );
+            })}
           </div>
+        )}
 
-          {/* Modal Footer */}
-          <DialogFooter className="p-5 border-t flex justify-between items-center">
-            <div className="text-sm text-muted-foreground">
-              {classStudents.length} student{classStudents.length !== 1 ? 's' : ''} in {selectedClass && classStyles[selectedClass]?.name}
+        {/* Enhanced Next Class and Poya Day Cards with Mindfulness Theme */}
+        <div className="mt-12 grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Next Class Card - REMOVED ICON */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+            className="relative overflow-hidden rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
+          >
+            {/* Mindful gradient - Light blue to soft white */}
+            <div className="absolute inset-0 bg-gradient-to-br from-sky-400 via-blue-300 to-white"></div>
+            <div className="absolute inset-0 bg-gradient-to-t from-blue-500/20 to-transparent"></div>
+            <div className="relative p-6 text-white">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center space-x-3">
+                  {/* REMOVED ICON */}
+                  <h3 className="text-xl font-bold text-gray-800">Next Class</h3>
+                </div>
+                <div className="flex space-x-2">
+                  {!editingClass && (
+                    <button
+                      onClick={() => setEditingClass(true)}
+                      className="p-2 bg-white bg-opacity-30 rounded-full hover:bg-opacity-40 transition-colors backdrop-blur-sm"
+                    >
+                      <FaEdit className="h-4 w-4 text-gray-700" />
+                    </button>
+                  )}
+                  {editingClass && (
+                    <>
+                      <button
+                        onClick={saveNextClass}
+                        disabled={savingClass}
+                        className="p-2 bg-green-500 bg-opacity-90 rounded-full hover:bg-opacity-100 transition-colors backdrop-blur-sm"
+                      >
+                        {savingClass ? <FaSpinner className="h-4 w-4 animate-spin text-white" /> : <FaSave className="h-4 w-4 text-white" />}
+                      </button>
+                      <button
+                        onClick={() => setEditingClass(false)}
+                        className="p-2 bg-red-500 bg-opacity-90 rounded-full hover:bg-opacity-100 transition-colors backdrop-blur-sm"
+                      >
+                        <FaTimes className="h-4 w-4 text-white" />
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {editingClass ? (
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-1 text-gray-700">Date</label>
+                    <input
+                      type="date"
+                      value={nextClass.date}
+                      onChange={(e) => setNextClass(prev => ({ ...prev, date: e.target.value }))}
+                      className="w-full px-3 py-2 bg-white bg-opacity-90 border border-gray-300 rounded-lg text-gray-800 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent backdrop-blur-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1 text-gray-700">Time</label>
+                    <input
+                      type="time"
+                      value={nextClass.time}
+                      onChange={(e) => setNextClass(prev => ({ ...prev, time: e.target.value }))}
+                      className="w-full px-3 py-2 bg-white bg-opacity-90 border border-gray-300 rounded-lg text-gray-800 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent backdrop-blur-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1 text-gray-700">Location</label>
+                    <input
+                      type="text"
+                      value={nextClass.location}
+                      onChange={(e) => setNextClass(prev => ({ ...prev, location: e.target.value }))}
+                      className="w-full px-3 py-2 bg-white bg-opacity-90 border border-gray-300 rounded-lg text-gray-800 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent backdrop-blur-sm"
+                      placeholder="Location"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1 text-gray-700">Topic</label>
+                    <input
+                      type="text"
+                      value={nextClass.topic}
+                      onChange={(e) => setNextClass(prev => ({ ...prev, topic: e.target.value }))}
+                      className="w-full px-3 py-2 bg-white bg-opacity-90 border border-gray-300 rounded-lg text-gray-800 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-400 focus:border-transparent backdrop-blur-sm"
+                      placeholder="Topic"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-3xl font-bold text-gray-800">
+                      {nextClass.date ? new Date(nextClass.date).toLocaleDateString('en-US', { 
+                        weekday: 'long',
+                        month: 'long', 
+                        day: 'numeric'
+                      }) : 'Not scheduled'}
+                    </p>
+                    <p className="text-gray-600 text-lg font-medium">{nextClass.time}</p>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <div className="flex items-center space-x-2">
+                      <FaMapMarkerAlt className="h-4 w-4 text-blue-600" />
+                      <span className="text-gray-700 font-medium">{nextClass.location}</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <FaBook className="h-4 w-4 text-blue-600" />
+                      <span className="text-gray-700 font-medium">{nextClass.topic}</span>
+                    </div>
+                  </div>
+
+                  {nextClass.date && (
+                    <div className="bg-white bg-opacity-40 rounded-lg p-4 backdrop-blur-sm">
+                      <div className="flex items-center space-x-2 mb-3">
+                        <FaClock className="h-4 w-4 text-gray-700" />
+                        <span className="text-sm font-medium text-gray-700">Time Remaining</span>
+                      </div>
+                      <CountdownDisplay 
+                        countdown={countdown.class} 
+                        expired={countdown.class.expired} 
+                        label="Class"  // This creates unique keys like "Class-days-3"
+                      />
+                    </div>
+                  )}
+
+                  {/* <button 
+                    onClick={() => navigate('/admin/attendance')}
+                    className="w-full mt-4 bg-white bg-opacity-30 hover:bg-opacity-40 px-4 py-2 rounded-lg transition-colors font-medium text-gray-800 backdrop-blur-sm border border-white border-opacity-30"
+                  >
+                    Mark Attendance
+                  </button> */}
+                </div>
+              )}
             </div>
-            
-            <Button 
-              onClick={() => selectedClass && handleViewAllStudents(selectedClass)}
-              variant="default"
-              className="gap-2"
-              size="default"
-            >
-              View All Students in Class
-              <FaArrowRight className="h-3.5 w-3.5" />
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </motion.div>
+
+          {/* Next Poya Day Card - REMOVED ICON */}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.3 }}
+            className="relative overflow-hidden rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:-translate-y-1"
+          >
+            {/* Mindful gradient - Soft gold to maroon */}
+            <div className="absolute inset-0 bg-gradient-to-br from-amber-300 via-orange-300 to-red-800"></div>
+            <div className="absolute inset-0 bg-gradient-to-t from-red-900/20 to-transparent"></div>
+            <div className="relative p-6 text-white">
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center space-x-3">
+                  {/* REMOVED ICON */}
+                  <h3 className="text-xl font-bold text-gray-800">Next Poya Day</h3>
+                </div>
+                <div className="flex space-x-2">
+                  {!editingPoya && (
+                    <button
+                      onClick={() => setEditingPoya(true)}
+                      className="p-2 bg-white bg-opacity-30 rounded-full hover:bg-opacity-40 transition-colors backdrop-blur-sm"
+                    >
+                      <FaEdit className="h-4 w-4 text-gray-700" />
+                    </button>
+                  )}
+                  {editingPoya && (
+                    <>
+                      <button
+                        onClick={saveNextPoya}
+                        disabled={savingPoya}
+                        className="p-2 bg-green-500 bg-opacity-90 rounded-full hover:bg-opacity-100 transition-colors backdrop-blur-sm"
+                      >
+                        {savingPoya ? <FaSpinner className="h-4 w-4 animate-spin text-white" /> : <FaSave className="h-4 w-4 text-white" />}
+                      </button>
+                      <button
+                        onClick={() => setEditingPoya(false)}
+                        className="p-2 bg-red-500 bg-opacity-90 rounded-full hover:bg-opacity-100 transition-colors backdrop-blur-sm"
+                      >
+                        <FaTimes className="h-4 w-4 text-white" />
+                      </button>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {editingPoya ? (
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium mb-1 text-gray-700">Date</label>
+                    <input
+                      type="date"
+                      value={nextPoyaDay.date}
+                      onChange={(e) => setNextPoyaDay(prev => ({ ...prev, date: e.target.value }))}
+                      className="w-full px-3 py-2 bg-white bg-opacity-90 border border-gray-300 rounded-lg text-gray-800 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent backdrop-blur-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1 text-gray-700">Poya Name</label>
+                    <input
+                      type="text"
+                      value={nextPoyaDay.name}
+                      onChange={(e) => setNextPoyaDay(prev => ({ ...prev, name: e.target.value }))}
+                      className="w-full px-3 py-2 bg-white bg-opacity-90 border border-gray-300 rounded-lg text-gray-800 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent backdrop-blur-sm"
+                      placeholder="Poya Name"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium mb-1 text-gray-700">Description</label>
+                    <textarea
+                      value={nextPoyaDay.description}
+                      onChange={(e) => setNextPoyaDay(prev => ({ ...prev, description: e.target.value }))}
+                      className="w-full px-3 py-2 bg-white bg-opacity-90 border border-gray-300 rounded-lg text-gray-800 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-orange-400 focus:border-transparent backdrop-blur-sm"
+                      placeholder="Description"
+                      rows="3"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-3xl font-bold text-gray-800">
+                      {nextPoyaDay.name || 'Next Poya'}
+                    </p>
+                    <p className="text-gray-700 text-lg font-medium">
+                      {nextPoyaDay.date ? new Date(nextPoyaDay.date).toLocaleDateString('en-US', { 
+                        weekday: 'long',
+                        month: 'long', 
+                        day: 'numeric'
+                      }) : 'Date not set'}
+                    </p>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <div className="flex items-center space-x-2">
+                      <FaPray className="h-4 w-4 text-amber-700" />
+                      <span className="text-gray-700 text-sm font-medium">{nextPoyaDay.description}</span>
+                    </div>
+                  </div>
+
+                  {nextPoyaDay.date && (
+                    <div className="bg-white bg-opacity-40 rounded-lg p-4 backdrop-blur-sm">
+                      <div className="flex items-center space-x-2 mb-3">
+                        <FaClock className="h-4 w-4 text-gray-700" />
+                        <span className="text-sm font-medium text-gray-700">Time Remaining</span>
+                      </div>
+                      <CountdownDisplay 
+                        countdown={countdown.poya} 
+                        expired={countdown.poya.expired} 
+                        label="Poya Day"  // This creates unique keys like "Poya Day-days-3"
+                      />
+                    </div>
+                  )}
+
+                  <div className="bg-white bg-opacity-40 rounded-lg p-3 backdrop-blur-sm">
+                    <p className="text-sm text-gray-700 font-medium">
+                      Sacred day for meditation, prayers, and spiritual reflection.
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        </div>
+
+        {/* Students Modal - Exactly like reference code */}
+        {showStudentsModal && selectedClass && (
+          <div className="fixed z-50 inset-0 overflow-y-auto">
+            <div className="flex items-center justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+              {/* Background overlay */}
+              <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" 
+                   onClick={closeStudentsModal}></div>
+              
+              {/* Modal Panel */}
+              <div className="inline-block align-bottom bg-white dark:bg-gray-800 rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-3xl sm:w-full">
+                {/* Modal Header with Close Button */}
+                <div className={`px-4 py-5 ${classConfigs[selectedClass]?.headingBg} border-b border-gray-200 dark:border-gray-700 flex justify-between items-center`}>
+                  <h3 className={`text-lg font-medium ${classConfigs[selectedClass]?.text}`}>
+                    {classConfigs[selectedClass]?.name} Students - {classData[selectedClass]?.totalStudents || 0} Total
+                    <span className="block text-sm mt-1 font-normal">{classConfigs[selectedClass]?.nameSi}</span>
+                  </h3>
+                  
+                  {/* Close button */}
+                  <button 
+                    onClick={closeStudentsModal}
+                    className="rounded-full h-8 w-8 flex items-center justify-center hover:bg-gray-200 dark:hover:bg-gray-700"
+                    title="Close"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+                
+                {/* Modal Body */}
+                <div className="px-4 py-5">
+                  {loadingStudents ? (
+                    <div className="flex justify-center py-12">
+                      <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+                    </div>
+                  ) : classStudents.length > 0 ? (
+                    <div className="overflow-x-auto">
+                      <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
+                        <thead className="bg-gray-50 dark:bg-gray-700">
+                          <tr>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                              Actions
+                            </th>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                              Student
+                            </th>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                              ID
+                            </th>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                              Gender
+                            </th>
+                            <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-300 uppercase tracking-wider">
+                              Age Group
+                            </th>
+                          </tr>
+                        </thead>
+                        <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
+                          {classStudents.map(student => (
+                            <tr key={student._id} className="hover:bg-gray-50 dark:hover:bg-gray-700">
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <Link 
+                                  to={`/admin/students/${student._id}`}
+                                  className="px-3 py-1 bg-indigo-600 text-white text-xs rounded hover:bg-indigo-700 transition-colors"
+                                >
+                                  View Details
+                                </Link>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap">
+                                <div className="flex items-center">
+                                  <div className="flex-shrink-0 h-10 w-10">
+                                    {student.profileImage ? (
+                                      <img 
+                                        className="h-10 w-10 rounded-full object-cover" 
+                                        src={student.profileImage.url} 
+                                        alt={`${safeDisplayName(student.name)} profile`} 
+                                      />
+                                    ) : (
+                                      <div className="h-10 w-10 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
+                                        <span className="text-gray-500 dark:text-gray-400">
+                                          {student.name?.en ? student.name.en.charAt(0) : '?'}
+                                        </span>
+                                      </div>
+                                    )}
+                                  </div>
+                                  <div className="ml-4">
+                                    <div className="text-sm font-medium text-gray-900 dark:text-white">
+                                      {safeDisplayName(student.name)}
+                                    </div>
+                                    <div className="text-sm text-gray-500 dark:text-gray-400">
+                                      {student.name?.si || ''}
+                                    </div>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                                {student.studentId}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                                {student.gender === 'M' ? 'Male' : student.gender === 'F' ? 'Female' : ''}
+                              </td>
+                              <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                                {student.ageGroup}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ) : (
+                    <div className="text-center py-12 text-gray-500 dark:text-gray-400">
+                      No students found in this class
+                    </div>
+                  )}
+                </div>
+                
+                {/* Modal Footer */}
+                <div className="px-4 py-3 bg-gray-50 dark:bg-gray-700 sm:px-6 flex justify-end">
+                  <Link 
+                    to={`/admin/students?classCode=${selectedClass}`}
+                    className="text-sm text-blue-600 dark:text-blue-400 hover:underline flex items-center"
+                  >
+                    <FaListUl className="mr-2" /> View All Students in This Class
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 };

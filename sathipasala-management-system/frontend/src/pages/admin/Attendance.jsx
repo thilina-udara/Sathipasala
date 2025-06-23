@@ -470,7 +470,13 @@ const AttendanceDashboard = () => {
       );
       
       if (response.data.success) {
-        setSuccess(`Attendance marked successfully for ${selectedClass} on ${format(attendanceDate, 'EEEE, MMMM d, yyyy')}`);
+        // After successful submission, trigger refresh in other components
+        localStorage.setItem('attendanceUpdated', 'true');
+        
+        // Dispatch custom event for same-tab updates
+        window.dispatchEvent(new CustomEvent('attendanceUpdated'));
+        
+        setSuccess('Attendance marked successfully!');
         
         // Refresh data to get latest state
         fetchAttendanceForDate(attendanceDate);

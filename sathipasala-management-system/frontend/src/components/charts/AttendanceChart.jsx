@@ -20,7 +20,7 @@ const AttendanceChart = ({ data, chartType = 'bar' }) => {
   const pieData = [
     { name: 'Present', value: data.present || 0, color: '#4ade80' },
     { name: 'Absent', value: data.absent || 0, color: '#f87171' },
-    { name: 'Late', value: data.late || 0, color: '#facc15' }
+    // { name: 'Late', value: data.late || 0, color: '#facc15' }
   ].filter(item => item.value > 0);
 
   // Format data for bar chart (monthly trend)
@@ -61,7 +61,7 @@ const AttendanceChart = ({ data, chartType = 'bar' }) => {
             <Legend />
             <Bar dataKey="present" name="Present" fill="#4ade80" />
             <Bar dataKey="absent" name="Absent" fill="#f87171" />
-            <Bar dataKey="late" name="Late" fill="#facc15" />
+            {/* <Bar dataKey="late" name="Late" fill="#facc15" /> */}
           </BarChart>
         </ResponsiveContainer>
       )}
