@@ -14,7 +14,6 @@ import EditStudent from './pages/admin/EditStudent';
 import StudentAttendance from './pages/admin/StudentAttendance';
 import Attendance from './pages/admin/Attendance';
 import AttendanceAnalysis from './pages/admin/AttendanceAnalysis';
-import AttendanceReport from './pages/admin/AttendanceReport';
 import BreathingBuddies from './pages/games/BreathingBuddies';
 import MindfulListening from './pages/games/MindfulListening';
 import KindnessGarden from './pages/games/KindnessGarden';
@@ -60,7 +59,6 @@ function App() {
               {/* Attendance Routes */}
               <Route path="/admin/attendance" element={<Attendance />} />
               <Route path="/admin/attendance/analysis" element={<AttendanceAnalysis />} />
-              <Route path="/admin/attendance/reports" element={<AttendanceReport />} />
             </Route>
           </Route>
           

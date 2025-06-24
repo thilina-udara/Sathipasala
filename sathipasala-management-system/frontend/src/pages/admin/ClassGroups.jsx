@@ -81,10 +81,10 @@ const ClassGroups = () => {
   });
   
   const [classData, setClassData] = useState({
-    ADH: { totalStudents: 0, lastAttendance: 0 },
-    MET: { totalStudents: 0, lastAttendance: 0 },
-    KHA: { totalStudents: 0, lastAttendance: 0 },
-    NEK: { totalStudents: 0, lastAttendance: 0 }
+    ADH: { totalStudents: 0 },
+    MET: { totalStudents: 0 },
+    KHA: { totalStudents: 0 },
+    NEK: { totalStudents: 0 }
   });
 
   // Class configurations with exact design maintained
@@ -250,6 +250,7 @@ const ClassGroups = () => {
   // -------- REMOVING ICONS AND FIXING ATTENDANCE COUNT --------
 
   // First, fix the fetch logic for class data to properly calculate attendance counts
+  // Update the fetchClassData function to only fetch total students
   const fetchClassData = useCallback(async () => {
     try {
       setLoading(true);
@@ -260,15 +261,15 @@ const ClassGroups = () => {
         throw new Error("Authentication required. Please log in.");
       }
 
-      // Initialize class data
+      // Initialize class data - SIMPLIFIED: Only totalStudents needed
       const updatedClassData = {
-        ADH: { totalStudents: 0, lastAttendance: 0 },
-        MET: { totalStudents: 0, lastAttendance: 0 },
-        KHA: { totalStudents: 0, lastAttendance: 0 },
-        NEK: { totalStudents: 0, lastAttendance: 0 }
+        ADH: { totalStudents: 0 },
+        MET: { totalStudents: 0 },
+        KHA: { totalStudents: 0 },
+        NEK: { totalStudents: 0 }
       };
 
-      // Step 1: Fetch total student counts by class
+      // Fetch total student counts by class only
       try {
         const studentsResponse = await axios.get('/api/students', {
           headers: getAuthHeaders(),
@@ -288,66 +289,6 @@ const ClassGroups = () => {
       } catch (studentError) {
         console.error('Error fetching students:', studentError);
         throw new Error('Could not fetch student data from database');
-      }
-
-      // Step 2: FIXED - Use direct attendance endpoint to get latest attendance
-      try {
-        // Get today's date in YYYY-MM-DD format
-        const today = new Date().toISOString().split('T')[0];
-        
-        // Try to find attendance data for each class for the most recent Sunday
-        const lastSundayDate = getLastSunday();
-        const formattedLastSunday = lastSundayDate.toISOString().split('T')[0];
-        
-        console.log(`Fetching attendance for last Sunday: ${formattedLastSunday}`);
-        
-        // Process each class to get attendance data
-        for (const classCode of Object.keys(updatedClassData)) {
-          try {
-            const attendanceResponse = await axios.get(`/api/attendance/date/${formattedLastSunday}`, {
-              headers: getAuthHeaders(),
-              params: { classCode }
-            });
-
-            if (attendanceResponse.data.success) {
-              const attendanceRecords = attendanceResponse.data.data || [];
-              const presentCount = attendanceRecords.filter(record => 
-                record.status === 'present' || record.status === 'late'
-              ).length;
-              
-              updatedClassData[classCode].lastAttendance = presentCount;
-              console.log(`Class ${classCode}: ${presentCount} students present on ${formattedLastSunday}`);
-            }
-          } catch (err) {
-            console.warn(`Could not fetch attendance for class ${classCode}, trying previous Sunday`);
-            
-            // If no data for last Sunday, try the previous Sunday
-            const previousSundayDate = new Date(lastSundayDate);
-            previousSundayDate.setDate(previousSundayDate.getDate() - 7);
-            const formattedPreviousSunday = previousSundayDate.toISOString().split('T')[0];
-            
-            try {
-              const attendanceResponse = await axios.get(`/api/attendance/date/${formattedPreviousSunday}`, {
-                headers: getAuthHeaders(),
-                params: { classCode }
-              });
-              
-              if (attendanceResponse.data.success) {
-                const attendanceRecords = attendanceResponse.data.data || [];
-                const presentCount = attendanceRecords.filter(record => 
-                  record.status === 'present' || record.status === 'late'
-                ).length;
-                
-                updatedClassData[classCode].lastAttendance = presentCount;
-                console.log(`Class ${classCode}: ${presentCount} students present on previous Sunday ${formattedPreviousSunday}`);
-              }
-            } catch (prevErr) {
-              console.warn(`Could not fetch attendance for class ${classCode} on previous Sunday either`);
-            }
-          }
-        }
-      } catch (attendanceError) {
-        console.warn('Could not fetch attendance data:', attendanceError.message);
       }
 
       setClassData(updatedClassData);
@@ -693,14 +634,9 @@ const ClassGroups = () => {
                           <div className="text-right">
                             <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Students</p>
                             <p className={`text-lg font-bold ${config.text}`}>
-                              Total: {data.totalStudents} / Present: {data.lastAttendance}
+                              Total: {data.totalStudents}
                             </p>
-                            <p className="text-xs text-gray-500 dark:text-gray-400">
-                              {data.totalStudents > 0 
-                                ? `${Math.round((data.lastAttendance / data.totalStudents) * 100)}% attendance`
-                                : 'No students registered'
-                              }
-                            </p>
+                           
                           </div>
                         </div>
                       </div>

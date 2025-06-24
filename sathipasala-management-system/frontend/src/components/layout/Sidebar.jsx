@@ -169,7 +169,6 @@ const Sidebar = ({ isMobile, closeMobileMenu }) => {
         >
           <SubNavItem to="/admin/attendance" label={t('sidebar.markAttendance')} />
           <SubNavItem to="/admin/attendance/analysis" label={t('sidebar.attendanceAnalysis')} />
-          <SubNavItem to="/admin/attendance/reports" label={t('sidebar.attendanceReports')} />
         </NavItem>
 
         <NavItem 

@@ -58,7 +58,7 @@ exports.getHolidaysByYear = asyncHandler(async (req, res, next) => {
       { date: "2025-05-01", name: "May Day" },
       { date: "2025-05-22", name: "Vesak Full Moon Poya Day" },
       { date: "2025-06-20", name: "Poson Full Moon Poya Day" },
-      { date: "2025-07-20", name: "Esala Full Moon Poya Day" },
+      { date: "2025-07-10", name: "Esala Full Moon Poya Day" },
       { date: "2025-08-18", name: "Nikini Full Moon Poya Day" },
       { date: "2025-09-17", name: "Binara Full Moon Poya Day" },
       { date: "2025-10-16", name: "Vap Full Moon Poya Day" },
