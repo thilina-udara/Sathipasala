@@ -213,7 +213,7 @@ const StudentDetails = () => {
                       <div className="flex justify-between">
                         <dt className="text-sm font-medium text-gray-500 dark:text-gray-400">Gender:</dt>
                         <dd className="text-sm text-gray-900 dark:text-white">
-                          {student.gender === 'M' ? 'Male' : student.gender === 'F' ? 'Female' : 'Other'}
+                          {student.gender === 'Male' || student.gender === 'Female' ? student.gender : 'Not specified'}
                         </dd>
                       </div>
                       <div className="flex justify-between">

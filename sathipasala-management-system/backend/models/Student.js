@@ -1,43 +1,24 @@
 const mongoose = require('mongoose');
 
-// Try to require uuid but make it optional
-let uuidv4;
-try {
-  const { v4 } = require('uuid');
-  uuidv4 = v4;
-} catch (err) {
-  // If uuid is not available, create a simple ID generator
-  uuidv4 = () => {
-    return 'xxxx-xxxx-xxxx-xxxx'.replace(/[x]/g, () => {
-      return Math.floor(Math.random() * 16).toString(16);
-    });
-  };
-  console.warn('uuid package not found, using fallback ID generator');
-}
-
 const StudentSchema = new mongoose.Schema(
   {
-    studentId: {
-      type: String,
-      required: true,
-      unique: true,
-      default: () => {
-        // Generate a unique student ID (e.g., SP2023001)
-        const year = new Date().getFullYear();
-        const randomId = Math.floor(1000 + Math.random() * 9000); // 4-digit random number
-        return `SP${year}${randomId}`;
-      },
-    },
     name: {
       en: {
         type: String,
         required: [true, 'English name is required'],
         trim: true,
+        maxlength: [100, 'Name cannot be more than 100 characters'],
       },
       si: {
         type: String,
         trim: true,
+        maxlength: [100, 'Sinhala name cannot be more than 100 characters'],
       },
+    },
+    studentId: {
+      type: String,
+      unique: true,
+      sparse: true,
     },
     dateOfBirth: {
       type: Date,
@@ -45,13 +26,13 @@ const StudentSchema = new mongoose.Schema(
     },
     gender: {
       type: String,
+      enum: ['Male', 'Female'], // Only these two values are allowed
       required: [true, 'Gender is required'],
-      enum: ['M', 'F', 'O'], // M = Male, F = Female, O = Other
     },
     ageGroup: {
       type: String,
-      required: [true, 'Age group is required'],
       enum: ['3-6', '7-10', '11-13', '14+'],
+      required: [true, 'Age group is required'],
     },
     classYear: {
       type: String,
@@ -59,8 +40,8 @@ const StudentSchema = new mongoose.Schema(
     },
     classCode: {
       type: String,
+      enum: ['ADH', 'MET', 'KHA', 'NEK'],
       required: [true, 'Class code is required'],
-      enum: ['ADH', 'MET', 'KHA', 'NEK'], // Class codes
     },
     parentInfo: {
       name: {
@@ -76,58 +57,17 @@ const StudentSchema = new mongoose.Schema(
       },
       phone: {
         type: String,
-        required: [true, 'Parent phone number is required'],
+        required: [true, 'Parent phone is required'],
       },
-      email: {
-        type: String,
-        match: [
-          /^([\w-\.]+@([\w-]+\.)+[\w-]{2,4})?$/,
-          'Please provide a valid email',
-        ],
-      },
-      address: {
-        type: String,
-        required: [true, 'Parent address is required'],
-      },
+      email: String,
+      address: String,
     },
-    emergencyContact: {
-      type: String,
-    },
+    emergencyContact: String,
     profileImage: {
       url: String,
+      public_id: String,
       filename: String,
-    },
-    // Attendance summary for quick stats
-    attendanceSummary: {
-      presentDays: {
-        type: Number,
-        default: 0,
-      },
-      absentDays: {
-        type: Number,
-        default: 0,
-      },
-      lateDays: {
-        type: Number,
-        default: 0,
-      },
-      totalDays: {
-        type: Number,
-        default: 0,
-      },
-      attendanceRate: {
-        type: Number,
-        default: 0, // Percentage
-      },
-      presentRate: {
-        type: Number,
-        default: 0, // Percentage
-      },
-      absentRate: {
-        type: Number,
-        default: 0, // Percentage
-      },
-      lastAttendance: Date,
+      uploadedAt: Date,
     },
     active: {
       type: Boolean,
@@ -136,48 +76,140 @@ const StudentSchema = new mongoose.Schema(
   },
   {
     timestamps: true,
-    toJSON: { virtuals: true },
-    toObject: { virtuals: true },
   }
 );
 
-// Virtual for age calculation
-StudentSchema.virtual('age').get(function () {
-  if (!this.dateOfBirth) return null;
-  
-  const today = new Date();
-  const birthDate = new Date(this.dateOfBirth);
-  let age = today.getFullYear() - birthDate.getFullYear();
-  
-  // Adjust age if birthday hasn't occurred yet this year
-  if (
-    today.getMonth() < birthDate.getMonth() ||
-    (today.getMonth() === birthDate.getMonth() && today.getDate() < birthDate.getDate())
-  ) {
-    age--;
+// Auto-generate student ID before saving
+StudentSchema.pre('save', async function (next) {
+  // Only generate ID if it doesn't exist
+  if (this.studentId) {
+    return next();
   }
-  
-  return age;
-});
 
-// Add virtual for attendance records relationship
-StudentSchema.virtual('attendanceRecords', {
-  ref: 'Attendance',
-  localField: '_id',
-  foreignField: 'student',
-  justOne: false
-});
+  try {
+    // Generate ID based on year and sequential number
+    const currentYear = new Date().getFullYear().toString().slice(-2);
 
-// Middleware to handle data before saving
-StudentSchema.pre('save', function (next) {
-  // Generate student ID if not provided
-  if (!this.studentId) {
-    const year = new Date().getFullYear();
-    const randomId = Math.floor(1000 + Math.random() * 9000);
-    this.studentId = `SP${year}${randomId}`;
+    // Find highest existing ID for this year
+    const highestRecord = await this.constructor
+      .findOne({
+        studentId: new RegExp(`^${currentYear}`),
+      })
+      .sort({ studentId: -1 });
+
+    let nextNumber = 1;
+
+    if (highestRecord && highestRecord.studentId) {
+      // Extract number from existing ID
+      const lastNumber = parseInt(highestRecord.studentId.slice(2), 10);
+      nextNumber = lastNumber + 1;
+    }
+
+    // Format with padding zeros (e.g., 23001, 23002)
+    this.studentId = `${currentYear}${nextNumber.toString().padStart(3, '0')}`;
+    next();
+  } catch (err) {
+    next(err);
   }
-  
-  next();
 });
 
-module.exports = mongoose.model('Student', StudentSchema);
+// Create and export the model
+const Student = mongoose.model('Student', StudentSchema);
+
+module.exports = Student;
+
+// In StudentRegistration.jsx - Update the handleSubmit function to ensure proper gender format
+
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  setLoading(true);
+  setMessage({ type: '', text: '' });
+
+  try {
+    // Make sure gender is capitalized correctly to match enum in Student model
+    if (!formData.gender) {
+      setMessage({
+        type: 'error',
+        text: 'Please select a gender'
+      });
+      setLoading(false);
+      return;
+    }
+
+    // Create JSON object for submission instead of FormData
+    const submitData = {
+      name: {
+        en: `${formData.firstName} ${formData.lastName}`,
+        si: formData.sinhalaName || `${formData.firstName} ${formData.lastName}`
+      },
+      dateOfBirth: formData.dateOfBirth,
+      gender: formData.gender, // This should already be 'Male' or 'Female' from the select
+      ageGroup: formData.ageGroup,
+      classYear: formData.classYear,
+      classCode: formData.classCode,
+      parentInfo: {
+        name: {
+          en: formData.parentInfo.name,
+          si: formData.parentInfo.name
+        },
+        phone: formData.parentInfo.phone,
+        email: formData.parentInfo.email || '',
+        address: formData.parentInfo.address
+      },
+      emergencyContact: formData.emergencyContact || ''
+    };
+
+    // Add profile image data if available (from CloudinaryUpload)
+    if (formData.profileImage) {
+      submitData.profileImage = formData.profileImage;
+    }
+
+    console.log('Submitting student data:', submitData);
+
+    // Send JSON data
+    const response = await axios.post('/api/students', submitData, {
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem('token')}`
+      }
+    });
+
+    setMessage({
+      type: 'success',
+      text: `Student registered successfully! ID: ${response.data.data?.studentId || 'N/A'}`
+    });
+
+    // Reset form
+    setFormData({
+      firstName: '',
+      lastName: '',
+      sinhalaName: '',
+      dateOfBirth: '',
+      gender: '',
+      ageGroup: '3-6',
+      classYear: new Date().getFullYear().toString(),
+      classCode: 'ADH',
+      parentInfo: {
+        name: '',
+        phone: '',
+        email: '',
+        address: ''
+      },
+      emergencyContact: ''
+    });
+    setImagePreview(null);
+    setProfileImage(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+    
+  } catch (error) {
+    console.error("Registration error:", error);
+    setMessage({
+      type: 'error',
+      text: error.response?.data?.message || 'Failed to register student'
+    });
+  } finally {
+    setLoading(false);
+  }
+};

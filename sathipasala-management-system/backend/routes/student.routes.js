@@ -9,6 +9,7 @@ const {
 } = require('../controllers/student.controller');
 const { protect, authorize } = require('../middleware/auth.middleware');
 const upload = require('../middleware/upload.middleware');
+const Student = require('../models/Student'); // Ensure the Student model is required
 
 const router = express.Router();
 
@@ -51,5 +52,30 @@ router
   .get(protect, getStudent)
   .put(protect, authorize('admin'), upload.single('profileImage'), updateStudent)
   .delete(protect, authorize('admin'), deleteStudent);
+
+// Debug route to check image data
+router.get('/debug/:id', protect, authorize(['admin']), async (req, res) => {
+  try {
+    const student = await Student.findById(req.params.id);
+    
+    if (!student) {
+      return res.status(404).json({
+        success: false,
+        message: 'Student not found'
+      });
+    }
+    
+    res.status(200).json({
+      success: true,
+      imageData: student.profileImage,
+      message: 'Student image data retrieved'
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+});
 
 module.exports = router;

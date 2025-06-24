@@ -1,30 +1,35 @@
+const { uploadStudentPhoto, deleteFromCloudinary } = require('../config/cloudinary');
 const Student = require('../models/Student');
 const ErrorResponse = require('../utils/errorResponse');
 const asyncHandler = require('../middleware/async.middleware');
 const path = require('path');
 const fs = require('fs');
+const mongoose = require('mongoose');
 
 /**
- * @desc    Register a new student
- * @route   POST /api/students
+ * @desc    Register a new student with Cloudinary image
+ * @route   POST /api/students  
  * @access  Private (Admin)
  */
 exports.registerStudent = asyncHandler(async (req, res, next) => {
-  // Handle file upload if there's a profile image
-  if (req.file) {
-    req.body.profileImage = {
-      url: `/uploads/${req.file.filename}`,
-      filename: req.file.filename
-    };
+  console.log('Registering new student:', req.body);
+
+  try {
+    // Create student - the ID will be generated in the pre-save hook
+    const student = await Student.create(req.body);
+
+    // Log the generated ID
+    console.log(`Student created with ID: ${student.studentId}`);
+
+    res.status(201).json({
+      success: true,
+      data: student,
+      message: 'Student registered successfully'
+    });
+  } catch (error) {
+    console.error('Error registering student:', error);
+    return next(new ErrorResponse(`Failed to register student: ${error.message}`, 500));
   }
-
-  // Create student
-  const student = await Student.create(req.body);
-
-  res.status(201).json({
-    success: true,
-    data: student
-  });
 });
 
 /**
@@ -105,96 +110,81 @@ exports.getStudent = asyncHandler(async (req, res, next) => {
 });
 
 /**
- * @desc    Update student
+ * @desc    Update student with Cloudinary image handling
  * @route   PUT /api/students/:id
  * @access  Private (Admin)
  */
 exports.updateStudent = asyncHandler(async (req, res, next) => {
-  console.log('Update student called for ID:', req.params.id);
-  console.log('File in request:', req.file ? 'YES' : 'NO');
-  if (req.file) {
-    console.log('File details:', req.file.filename, req.file.mimetype, req.file.size);
-  }
+  console.log('Updating student ID:', req.params.id);
+  console.log('Update data received:', JSON.stringify(req.body));
   
-  let student = await Student.findById(req.params.id);
+  try {
+    let student = await Student.findById(req.params.id);
+    if (!student) {
+      return next(new ErrorResponse(`Student not found with id of ${req.params.id}`, 404));
+    }
 
-  if (!student) {
-    return next(new ErrorResponse(`Student not found with id of ${req.params.id}`, 404));
-  }
-
-  // Handle file upload if there's a profile image
-  if (req.file) {
-    console.log('Processing new image upload');
+    // Normalize the data to match schema requirements
+    const updateData = { ...req.body };
     
-    // Delete old image if exists
-    try {
-      if (student.profileImage && student.profileImage.filename) {
-        const oldImagePath = path.join(__dirname, '../public/uploads', student.profileImage.filename);
-        console.log('Looking for old image at:', oldImagePath);
-        
-        if (fs.existsSync(oldImagePath)) {
-          console.log('Deleting old image file');
-          fs.unlinkSync(oldImagePath);
-        } else {
-          console.log('Old image file not found on disk');
-        }
+    // Normalize gender (capitalize first letter)
+    if (updateData.gender) {
+      const normalizedGender = updateData.gender.charAt(0).toUpperCase() + 
+                             updateData.gender.slice(1).toLowerCase();
+                             
+      console.log(`Normalizing gender from "${updateData.gender}" to "${normalizedGender}"`);
+      updateData.gender = normalizedGender;
+    }
+
+    // Handle Cloudinary image updates
+    if (updateData.profileImage) {
+      console.log('Profile image data received:', updateData.profileImage);
+      
+      // Make sure we have a proper URL
+      if (!updateData.profileImage.url && updateData.profileImage.path) {
+        updateData.profileImage.url = updateData.profileImage.path;
       }
       
-      // Set new image - use absolute URL for stability
-      const filename = req.file.filename;
-      req.body.profileImage = {
-        url: `/uploads/${filename}`,
-        filename: filename
-      };
+      // If we don't have a URL but have a filename that looks like a URL
+      if (!updateData.profileImage.url && updateData.profileImage.filename && 
+          (updateData.profileImage.filename.startsWith('http://') || 
+           updateData.profileImage.filename.startsWith('https://'))) {
+        updateData.profileImage.url = updateData.profileImage.filename;
+      }
       
-      console.log('New profile image data:', req.body.profileImage);
-    } catch (err) {
-      console.error('Error processing file:', err);
-      // Continue with the update even if there was an error with the old file
-    }
-  }
-
-  // Handle image removal if requested
-  if (req.body.removeProfileImage === 'true' && !req.file) {
-    console.log('Image removal requested');
-    try {
-      if (student.profileImage && student.profileImage.filename) {
-        const oldImagePath = path.join(__dirname, '../public/uploads', student.profileImage.filename);
-        if (fs.existsSync(oldImagePath)) {
-          fs.unlinkSync(oldImagePath);
-          console.log('Removed old image file');
+      // Ensure we have required fields
+      if (!updateData.profileImage.url) {
+        console.warn('Missing URL in profileImage:', updateData.profileImage);
+        return next(new ErrorResponse('Missing image URL in the request', 400));
+      }
+      
+      // Delete old image from Cloudinary if exists
+      if (student.profileImage?.public_id) {
+        try {
+          await deleteFromCloudinary(student.profileImage.public_id);
+          console.log('Old image deleted from Cloudinary');
+        } catch (error) {
+          console.warn('Failed to delete old image from Cloudinary:', error);
         }
       }
-      req.body.profileImage = null;
-      console.log('Set profileImage to null in database');
-    } catch (err) {
-      console.error('Error removing image:', err);
     }
+
+    console.log('Final update data after normalization:', updateData);
+    
+    student = await Student.findByIdAndUpdate(req.params.id, updateData, {
+      new: true,
+      runValidators: true
+    });
+
+    res.status(200).json({
+      success: true,
+      data: student,
+      message: 'Student updated successfully'
+    });
+  } catch (error) {
+    console.error('Student update error:', error);
+    return next(new ErrorResponse(`Failed to update student: ${error.message}`, 500));
   }
-
-  // Update student with updated fields only
-  console.log('Fields being updated:', Object.keys(req.body));
-  
-  // Make sure profileImage is properly handled (MongoDB can be picky about null fields)
-  if (req.body.profileImage === null) {
-    // Use $unset to completely remove the field
-    await Student.updateOne(
-      { _id: req.params.id }, 
-      { $unset: { profileImage: "" } }
-    );
-    delete req.body.profileImage; // Don't include it in the main update
-  }
-
-  student = await Student.findByIdAndUpdate(req.params.id, req.body, {
-    new: true,
-    runValidators: true
-  });
-
-  console.log('Student updated successfully');
-  res.status(200).json({
-    success: true,
-    data: student
-  });
 });
 
 /**
@@ -283,3 +273,123 @@ exports.getClassGroups = asyncHandler(async (req, res, next) => {
     return next(new ErrorResponse('Failed to retrieve class data', 500));
   }
 });
+
+// Replace your existing uploadProfileImage function
+exports.uploadProfileImage = async (req, res) => {
+  try {
+    // Handle multer upload
+    uploadStudentPhoto.single('profileImage')(req, res, async (err) => {
+      if (err) {
+        return res.status(400).json({
+          success: false,
+          message: err.message || 'File upload failed'
+        });
+      }
+
+      const { id } = req.params;
+
+      // Find student
+      const student = await Student.findById(id);
+      if (!student) {
+        // Clean up uploaded file if student not found
+        if (req.file?.public_id) {
+          await deleteFromCloudinary(req.file.public_id);
+        }
+        return res.status(404).json({
+          success: false,
+          message: 'Student not found'
+        });
+      }
+
+      // Delete old image if exists
+      if (student.profileImage?.public_id) {
+        try {
+          await deleteFromCloudinary(student.profileImage.public_id);
+        } catch (deleteError) {
+          console.warn('Failed to delete old image:', deleteError);
+        }
+      }
+
+      // Update student with new Cloudinary image data
+      const imageData = {
+        url: req.file.secure_url,
+        public_id: req.file.public_id,
+        filename: req.file.original_filename || req.file.originalname,
+        uploadedAt: new Date()
+      };
+
+      student.profileImage = imageData;
+      await student.save();
+
+      res.status(200).json({
+        success: true,
+        message: 'Profile image uploaded successfully',
+        data: {
+          student: {
+            _id: student._id,
+            profileImage: imageData
+          }
+        }
+      });
+    });
+
+  } catch (error) {
+    console.error('Error uploading profile image:', error);
+    
+    // Clean up uploaded file if database operation failed
+    if (req.file?.public_id) {
+      try {
+        await deleteFromCloudinary(req.file.public_id);
+      } catch (cleanupError) {
+        console.error('Failed to cleanup uploaded file:', cleanupError);
+      }
+    }
+
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to upload profile image'
+    });
+  }
+};
+
+// Enhanced delete function
+exports.deleteProfileImage = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const student = await Student.findById(id);
+    if (!student) {
+      return res.status(404).json({
+        success: false,
+        message: 'Student not found'
+      });
+    }
+
+    if (!student.profileImage?.public_id) {
+      return res.status(400).json({
+        success: false,
+        message: 'No profile image to delete'
+      });
+    }
+
+    // Delete from Cloudinary
+    await deleteFromCloudinary(student.profileImage.public_id);
+
+    // Update student record
+    student.profileImage = null;
+    await student.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Profile image deleted successfully',
+      data: { student: { _id: student._id, profileImage: null } }
+    });
+
+  } catch (error) {
+    console.error('Error deleting profile image:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to delete profile image'
+    });
+  }
+};

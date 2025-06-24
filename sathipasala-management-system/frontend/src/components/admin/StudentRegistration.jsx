@@ -1,6 +1,7 @@
 import { useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import axios from 'axios';
+import CloudinaryUpload from '../common/CloudinaryUpload';
 
 const StudentRegistration = () => {
   const { t } = useTranslation();
@@ -133,50 +134,48 @@ const StudentRegistration = () => {
     setMessage({ type: '', text: '' });
 
     try {
-      console.log('Submitting form with gender:', formData.gender); // Debug log
-    
-      // Create form data object for multipart/form-data submission
-      const submitData = new FormData();
-      
-      // Add student information
-      submitData.append('name[en]', `${formData.firstName} ${formData.lastName}`);
-      submitData.append('name[si]', formData.sinhalaName || `${formData.firstName} ${formData.lastName}`);
-      submitData.append('dateOfBirth', formData.dateOfBirth);
-      submitData.append('gender', formData.gender); // Now using "M" or "F"
-      submitData.append('ageGroup', formData.ageGroup);
-      submitData.append('classYear', formData.classYear);
-      submitData.append('classCode', formData.classCode);
-      
-      // Add parent information
-      submitData.append('parentInfo[name][en]', formData.parentInfo.name);
-      submitData.append('parentInfo[name][si]', formData.parentInfo.name);
-      submitData.append('parentInfo[phone]', formData.parentInfo.phone);
-      submitData.append('parentInfo[email]', formData.parentInfo.email);
-      submitData.append('parentInfo[address]', formData.parentInfo.address);
-      
-      // Add emergency contact if provided
-      if (formData.emergencyContact) {
-        submitData.append('emergencyContact', formData.emergencyContact);
+      // Create a proper JSON object for submission
+      const submitData = {
+        name: {
+          en: `${formData.firstName} ${formData.lastName}`,
+          si: formData.sinhalaName || `${formData.firstName} ${formData.lastName}`
+        },
+        dateOfBirth: formData.dateOfBirth,
+        gender: formData.gender, 
+        ageGroup: formData.ageGroup,
+        classYear: formData.classYear,
+        classCode: formData.classCode,
+        parentInfo: {
+          name: {
+            en: formData.parentInfo.name,
+            si: formData.parentInfo.name
+          },
+          phone: formData.parentInfo.phone,
+          email: formData.parentInfo.email || '',
+          address: formData.parentInfo.address
+        },
+        emergencyContact: formData.emergencyContact || ''
+      };
+
+      // Add profile image data from CloudinaryUpload if available
+      if (formData.profileImage) {
+        console.log('Adding Cloudinary profile image to submission:', formData.profileImage);
+        submitData.profileImage = formData.profileImage;
       }
+
+      console.log('Submitting student data:', submitData);
       
-      // Add profile image if provided
-      if (profileImage) {
-        submitData.append('profileImage', profileImage);
-      }
-      
-      console.log('Submitting new student registration');
-      
-      // Send data to API
+      // Send JSON data (not FormData)
       const response = await axios.post('/api/students', submitData, {
         headers: {
-          'Content-Type': 'multipart/form-data',
+          'Content-Type': 'application/json',
           'Authorization': `Bearer ${localStorage.getItem('token')}`
         }
       });
 
       setMessage({
         type: 'success',
-        text: `Student registered successfully. ID: ${response.data.data?.studentId || 'N/A'}`
+        text: `Student registered successfully! ID: ${response.data.data?.studentId || 'N/A'}`
       });
       
       // Reset form after successful submission
@@ -188,7 +187,7 @@ const StudentRegistration = () => {
         gender: '',
         ageGroup: '3-6',
         classYear: new Date().getFullYear().toString(),
-        classCode: 'ADH',  // Default to Adhiṭṭhāna class
+        classCode: 'ADH',
         parentInfo: {
           name: '',
           phone: '',
@@ -199,9 +198,6 @@ const StudentRegistration = () => {
       });
       setImagePreview(null);
       setProfileImage(null);
-      if (fileInputRef.current) {
-        fileInputRef.current.value = '';
-      }
       
     } catch (error) {
       console.error("Registration error:", error);
@@ -292,8 +288,8 @@ const StudentRegistration = () => {
                 className="w-full px-3 py-2 border rounded focus:outline-none focus:ring focus:border-blue-300 dark:bg-gray-700 dark:text-white dark:border-gray-600"
               >
                 <option value="">-- {t('admin.students.selectGender')} --</option>
-                <option value="M">{t('admin.students.male')}</option>
-                <option value="F">{t('admin.students.female')}</option>
+                <option value="Male">{t('admin.students.male')}</option>
+                <option value="Female">{t('admin.students.female')}</option>
               </select>
             </div>
             
@@ -381,22 +377,37 @@ const StudentRegistration = () => {
                     <span className="text-gray-500 dark:text-gray-400 text-3xl">👤</span>
                   </div>
                 )}
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  accept="image/*"
-                  onChange={handleImageChange}
-                  className="block w-full text-sm text-gray-500 dark:text-gray-400
-                    file:mr-4 file:py-2 file:px-4
-                    file:rounded file:border-0
-                    file:text-sm file:font-semibold
-                    file:bg-blue-50 file:text-blue-700
-                    dark:file:bg-blue-900 dark:file:text-blue-200
-                    hover:file:bg-blue-100 dark:hover:file:bg-blue-800"
-                />
+                
+                {!imagePreview && (
+                  <CloudinaryUpload
+                    uploadType="student-photo"
+                    onUploadSuccess={(uploadData) => {
+                      console.log('Image uploaded to Cloudinary:', uploadData);
+                      setImagePreview(uploadData.url);
+                      // Store the full image data for submission
+                      setFormData(prev => ({
+                        ...prev,
+                        profileImage: {
+                          url: uploadData.url,
+                          public_id: uploadData.public_id,
+                          filename: uploadData.filename
+                        }
+                      }));
+                    }}
+                    onUploadError={(error) => {
+                      console.error('Cloudinary upload error:', error);
+                      setMessage({
+                        type: 'error',
+                        text: error
+                      });
+                    }}
+                    acceptedTypes="image/*"
+                    maxSize={5}
+                  />
+                )}
               </div>
               <p className="text-xs text-gray-500 mt-1">
-                Maximum 2MB, JPG or PNG format only
+                Maximum 5MB, JPG, PNG or WebP format
               </p>
             </div>
           </div>

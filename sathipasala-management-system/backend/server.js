@@ -52,6 +52,7 @@ const studentRoutes = require('./routes/student.routes');
 const attendanceRoutes = require('./routes/attendance.routes');
 const holidaysRoutes = require('./routes/holidays.routes');
 const statsRoutes = require('./routes/stats.routes'); // Add this with your other routes
+const uploadRoutes = require('./routes/upload.routes'); // Add this line with your other route imports
 
 // Import the attendance setup function
 const { setupAttendanceCollection } = require('./models/Attendance');
@@ -87,6 +88,7 @@ app.use('/api/students', studentRoutes);
 app.use('/api/attendance', attendanceRoutes);
 app.use('/api/holidays', holidaysRoutes);
 app.use('/api/stats', statsRoutes); // Register the routes
+app.use('/api/upload', uploadRoutes); // Add this line with your other route registrations
 
 // Basic route for testing
 app.get('/', (req, res) => {
@@ -108,5 +110,9 @@ app.use((err, req, res, next) => {
     error: process.env.NODE_ENV === 'development' ? err.message : {}
   });
 });
+
+// Add this near your startup code
+const Student = require('./models/Student');
+console.log('Student gender enum values:', Student.schema.path('gender').enumValues);
 
 module.exports = app;
