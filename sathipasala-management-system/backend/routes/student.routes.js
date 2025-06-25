@@ -5,7 +5,9 @@ const {
   getStudent,
   updateStudent,
   deleteStudent,
-  getClassGroups
+  getClassGroups,
+  studentLogin,
+  updateStudentPassword
 } = require('../controllers/student.controller');
 const { protect, authorize } = require('../middleware/auth.middleware');
 const upload = require('../middleware/upload.middleware');
@@ -77,5 +79,11 @@ router.get('/debug/:id', protect, authorize(['admin']), async (req, res) => {
     });
   }
 });
+
+// Student login
+router.post('/login', studentLogin);
+
+// Update student password
+router.post('/update-password', updateStudentPassword);
 
 module.exports = router;

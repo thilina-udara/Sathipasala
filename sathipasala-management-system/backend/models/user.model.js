@@ -14,16 +14,19 @@ const userSchema = new mongoose.Schema({
   },
   email: {
     type: String,
-    required: [true, 'Please add an email'],
-    unique: true,
+    required: function() { return this.role !== 'student'; },
+    unique: false, // Allow duplicates for students
+    sparse: true,
     match: [
-      /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/,
-      'Please add a valid email'
+      /^\S+@\S+\.\S+$/,
+      'Please add a valid email address'
     ]
   },
   phone: {
     type: String,
-    required: [true, 'Please add a phone number']
+    required: function() { return this.role !== 'student'; },
+    unique: false, // Allow duplicates for students
+    sparse: true,
   },
   password: {
     type: String,
@@ -73,6 +76,10 @@ const userSchema = new mongoose.Schema({
   createdAt: {
     type: Date,
     default: Date.now
+  },
+  isPasswordTemporary: {
+    type: Boolean,
+    default: true
   }
 }, {
   timestamps: true
@@ -81,9 +88,8 @@ const userSchema = new mongoose.Schema({
 // Encrypt password using bcrypt
 userSchema.pre('save', async function(next) {
   if (!this.isModified('password')) {
-    next();
+    return next();
   }
-
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
 });

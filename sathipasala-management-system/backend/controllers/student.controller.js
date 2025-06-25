@@ -8,6 +8,7 @@ const path = require('path');
 const fs = require('fs');
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 
 /**
  * @desc    Register a new student with Cloudinary image
@@ -32,13 +33,12 @@ exports.registerStudent = asyncHandler(async (req, res, next) => {
     const student = await Student.create(studentData);
     
     // Create user account for student login
-    const hashedPassword = await bcrypt.hash(tempPassword, 10);
-    
     const userAccount = await User.create({
       name: studentData.name,
-      email: studentData.parentInfo?.email || `${studentId}@baunseth.temp`, // Temporary email if none provided
-      studentId: studentId, // Store student ID for login
-      password: hashedPassword,
+      email: studentData.parentInfo?.email || `${studentId}@baunseth.temp`,
+      phone: studentData.parentInfo?.phone || '',
+      studentId: studentId,
+      password: tempPassword, // <-- Use plain tempPassword, NOT hashedPassword
       role: 'student',
       firstLogin: true,
       preferredLanguage: 'en',
@@ -424,6 +424,140 @@ exports.deleteProfileImage = async (req, res) => {
     res.status(500).json({
       success: false,
       message: error.message || 'Failed to delete profile image'
+    });
+  }
+};
+
+// Student login with temporary password support
+exports.studentLogin = async (req, res) => {
+  try {
+    const { studentId, password } = req.body;
+
+    if (!studentId || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Student ID and password are required'
+      });
+    }
+
+    // Find user by studentId
+    const user = await User.findOne({ studentId }).select('+password');
+    if (!user || user.role !== 'student') {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid Student ID or password'
+      });
+    }
+
+    // Compare password
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid Student ID or password'
+      });
+    }
+
+    // Generate JWT
+    const token = jwt.sign({ id: user._id }, process.env.JWT_SECRET, {
+      expiresIn: process.env.JWT_EXPIRE || '1d'
+    });
+
+    res.status(200).json({
+      success: true,
+      token,
+      user: {
+        _id: user._id,
+        studentId: user.studentId,
+        name: user.name,
+        isPasswordTemporary: user.isPasswordTemporary,
+        preferredLanguage: user.preferredLanguage
+      },
+      isPasswordTemporary: user.isPasswordTemporary
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
+};
+
+// Update student password (for admin and user)
+exports.updateStudentPassword = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { password } = req.body;
+
+    if (!password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password is required'
+      });
+    }
+
+    // For admin: update any student's password
+    if (req.user.role === 'admin') {
+      const student = await Student.findById(id);
+      if (!student) {
+        return res.status(404).json({
+          success: false,
+          message: 'Student not found'
+        });
+      }
+
+      // Hash the new password
+      const hashedPassword = await bcrypt.hash(tempPassword, 10);
+      student.password = hashedPassword;
+      await student.save();
+
+      return res.status(200).json({
+        success: true,
+        message: 'Password updated successfully for student',
+        data: { student: { _id: student._id, name: student.name } }
+      });
+    }
+
+    // For student: update own password
+    const user = await User.findById(req.user.id).select('+password');
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: 'User not found'
+      });
+    }
+
+    // Check if the current password matches
+    const isMatch = await bcrypt.compare(password, user.password);
+    if (!isMatch) {
+      return res.status(401).json({
+        success: false,
+        message: 'Current password is incorrect'
+      });
+    }
+
+    // Hash and set the new password
+    const newPassword = req.body.newPassword;
+    if (!newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'New password is required'
+      });
+    }
+
+    const hashedNewPassword = await bcrypt.hash(newPassword, 10);
+    user.password = hashedNewPassword;
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: 'Password updated successfully'
+    });
+  } catch (error) {
+    console.error('Error updating password:', error);
+    res.status(500).json({
+      success: false,
+      message: error.message || 'Failed to update password'
     });
   }
 };

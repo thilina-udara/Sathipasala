@@ -29,6 +29,8 @@ const StudentRegistration = () => {
     emergencyContact: ''
   });
 
+  const [tempCredentials, setTempCredentials] = useState(null);
+
   // Add this function within your StudentRegistration component
   const calculateAgeAndSetAgeGroup = (birthDate) => {
     if (!birthDate) return;
@@ -132,6 +134,7 @@ const StudentRegistration = () => {
     e.preventDefault();
     setLoading(true);
     setMessage({ type: '', text: '' });
+    setTempCredentials(null);
 
     try {
       // Create a proper JSON object for submission
@@ -177,7 +180,15 @@ const StudentRegistration = () => {
         type: 'success',
         text: `Student registered successfully! ID: ${response.data.data?.studentId || 'N/A'}`
       });
-      
+
+      // Show credentials modal/message
+      if (response.data.credentials) {
+        setTempCredentials({
+          studentId: response.data.credentials.studentId,
+          temporaryPassword: response.data.credentials.temporaryPassword
+        });
+      }
+
       // Reset form after successful submission
       setFormData({
         firstName: '',
@@ -221,6 +232,30 @@ const StudentRegistration = () => {
           }`}
         >
           {message.text}
+        </div>
+      )}
+
+      {/* Temporary Credentials Modal/Message */}
+      {tempCredentials && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-40">
+          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-lg p-8 max-w-sm w-full text-center">
+            <h2 className="text-xl font-bold mb-4 text-blue-700 dark:text-blue-300">Student Credentials</h2>
+            <p className="mb-2 text-gray-700 dark:text-gray-200">
+              <span className="font-semibold">Student ID:</span> <span className="font-mono">{tempCredentials.studentId}</span>
+            </p>
+            <p className="mb-4 text-gray-700 dark:text-gray-200">
+              <span className="font-semibold">Temporary Password:</span> <span className="font-mono">{tempCredentials.temporaryPassword}</span>
+            </p>
+            <p className="mb-4 text-sm text-yellow-700 dark:text-yellow-300">
+              Please copy and share these credentials with the student now. This password will not be shown again.
+            </p>
+            <button
+              className="mt-2 px-6 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+              onClick={() => setTempCredentials(null)}
+            >
+              Close
+            </button>
+          </div>
         </div>
       )}
 

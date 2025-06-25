@@ -5,7 +5,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { FaEye, FaEyeSlash, FaHome, FaKey, FaUserGraduate, FaQuestionCircle } from 'react-icons/fa';
 import { IoLanguage } from 'react-icons/io5';
 import logo from '../components/image/logo/logo.png'; // Import your logo
-
+import axios from 'axios';
 
 const StudentLogin = () => {
   const { i18n } = useTranslation();
@@ -43,15 +43,18 @@ const StudentLogin = () => {
     setLocalError('');
     
     try {
-      const user = await login(formData.studentId, formData.password);
-      
-      if (user.role === 'student') {
-        navigate('/student/dashboard');
+      // POST to backend
+      const res = await axios.post('/api/students/login', formData);
+      // Save token if needed: localStorage.setItem('token', res.data.token);
+      if (res.data.isPasswordTemporary) {
+        // Redirect to set new password page, pass studentId (and maybe token)
+        navigate('/student-set-password', { state: { studentId: formData.studentId, token: res.data.token } });
       } else {
-        setLocalError('This page is for students only. Please ask your teacher for help.');
+        // Redirect to dashboard
+        navigate('/student/dashboard');
       }
     } catch (err) {
-      setLocalError(err.response?.data?.message || 'Oops! Please check your Student ID and password.');
+      setLocalError(err.response?.data?.message || 'Login failed');
     } finally {
       setIsLoading(false);
     }
