@@ -16,8 +16,10 @@ const AdminLayout = () => {
   };
 
   const handleLogout = () => {
+    // Clear token and redirect to secure admin login
     localStorage.removeItem('token');
-    navigate('/login');
+    logout(); // Clear auth context
+    navigate('/bsp/login/admin'); // ✅ Fixed: Redirect to secure admin login
   };
 
   // Determine page title based on current route

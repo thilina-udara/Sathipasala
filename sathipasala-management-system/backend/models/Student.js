@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const { generateUniqueStudentId } = require('../utils/idGenerator');
 
 const StudentSchema = new mongoose.Schema(
   {
@@ -81,35 +82,17 @@ const StudentSchema = new mongoose.Schema(
 
 // Auto-generate student ID before saving
 StudentSchema.pre('save', async function (next) {
-  // Only generate ID if it doesn't exist
-  if (this.studentId) {
-    return next();
-  }
-
   try {
-    // Generate ID based on year and sequential number
-    const currentYear = new Date().getFullYear().toString().slice(-2);
-
-    // Find highest existing ID for this year
-    const highestRecord = await this.constructor
-      .findOne({
-        studentId: new RegExp(`^${currentYear}`),
-      })
-      .sort({ studentId: -1 });
-
-    let nextNumber = 1;
-
-    if (highestRecord && highestRecord.studentId) {
-      // Extract number from existing ID
-      const lastNumber = parseInt(highestRecord.studentId.slice(2), 10);
-      nextNumber = lastNumber + 1;
+    // Only generate ID if it doesn't exist
+    if (!this.studentId) {
+      console.log('Generating new Student ID...');
+      this.studentId = await generateUniqueStudentId();
+      console.log(`✓ Assigned Student ID: ${this.studentId}`);
     }
-
-    // Format with padding zeros (e.g., 23001, 23002)
-    this.studentId = `${currentYear}${nextNumber.toString().padStart(3, '0')}`;
     next();
-  } catch (err) {
-    next(err);
+  } catch (error) {
+    console.error('Error in Student pre-save hook:', error);
+    next(error);
   }
 });
 

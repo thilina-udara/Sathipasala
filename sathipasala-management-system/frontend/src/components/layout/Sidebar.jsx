@@ -1,22 +1,19 @@
-import React, { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { useState } from 'react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { FaHome, FaUsers, FaCalendarAlt, FaChartBar, FaUserCog, FaCog, FaLanguage } from 'react-icons/fa';
 import { useAuth } from '../../contexts/AuthContext';
+import { FaHome, FaUsers, FaCalendarCheck, FaUserGraduate, FaChartBar, FaCog, FaExclamationTriangle, FaUser, FaUserCog, FaBookOpen, FaChevronDown, FaChevronRight } from 'react-icons/fa';
 
 const Sidebar = ({ isMobile, closeMobileMenu }) => {
   const { t, i18n } = useTranslation();
   const { user, logout } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const [openSubMenu, setOpenSubMenu] = useState('');
-
-  const toggleCollapse = () => {
-    setIsCollapsed(!isCollapsed);
-  };
+  const [openSubMenu, setOpenSubMenu] = useState(null);
 
   const toggleSubMenu = (menu) => {
-    setOpenSubMenu(openSubMenu === menu ? '' : menu);
+    setOpenSubMenu(openSubMenu === menu ? null : menu);
   };
 
   const isActive = (path) => {
@@ -24,7 +21,9 @@ const Sidebar = ({ isMobile, closeMobileMenu }) => {
   };
 
   const handleLogout = () => {
-    logout();
+    logout(); // Clear auth context
+    // ✅ Fixed: Redirect to secure admin login instead of general login
+    navigate('/bsp/login/admin');
   };
 
   const changeLanguage = (lng) => {
@@ -44,30 +43,35 @@ const Sidebar = ({ isMobile, closeMobileMenu }) => {
           className={`flex items-center py-2 px-4 rounded-md cursor-pointer 
             ${isMenuActive 
               ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200' 
-              : 'text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800'}`}
+              : 'text-gray-700 hover:bg-blue-50 dark:text-gray-300 dark:hover:bg-blue-800 hover:text-blue-700 dark:hover:text-blue-200'
+            } transition-colors duration-200`}
         >
           {to ? (
-            <Link to={to} className="flex items-center w-full">
-              <span className="text-xl mr-3">{icon}</span>
-              {!isCollapsed && <span className="font-medium">{label}</span>}
+            <Link to={to} className="flex items-center flex-1" onClick={closeMobileMenu}>
+              <span className="text-lg mr-3">{icon}</span>
+              {!isCollapsed && (
+                <span className="font-medium">{label}</span>
+              )}
             </Link>
           ) : (
             <>
-              <span className="text-xl mr-3">{icon}</span>
+              <span className="text-lg mr-3">{icon}</span>
               {!isCollapsed && (
-                <div className="flex justify-between items-center w-full">
-                  <span className="font-medium">{label}</span>
-                  <span className={`transform transition-transform ${openSubMenu === subMenuKey ? 'rotate-180' : ''}`}>
-                    ▼
-                  </span>
-                </div>
+                <>
+                  <span className="font-medium flex-1">{label}</span>
+                  {hasSubMenu && (
+                    <span className="text-sm">
+                      {openSubMenu === subMenuKey ? <FaChevronDown /> : <FaChevronRight />}
+                    </span>
+                  )}
+                </>
               )}
             </>
           )}
         </div>
         
         {hasSubMenu && openSubMenu === subMenuKey && !isCollapsed && (
-          <div className="ml-10 mt-1 space-y-1">
+          <div className="ml-6 mt-1 space-y-1">
             {children}
           </div>
         )}
@@ -76,51 +80,70 @@ const Sidebar = ({ isMobile, closeMobileMenu }) => {
   };
 
   const SubNavItem = ({ to, label }) => (
-    <Link 
-      to={to} 
-      className={`block py-2 px-3 rounded-md ${isActive(to) 
-        ? 'bg-blue-50 text-blue-700 dark:bg-blue-900 dark:text-blue-200' 
-        : 'text-gray-600 hover:bg-gray-50 dark:text-gray-400 dark:hover:bg-gray-800'}`}
-      onClick={closeMobileMenu && closeMobileMenu}
+    <Link
+      to={to}
+      onClick={closeMobileMenu}
+      className={`block py-2 px-4 text-sm rounded-md transition-colors duration-200 ${
+        isActive(to)
+          ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200'
+          : 'text-gray-600 hover:bg-blue-50 dark:text-gray-400 dark:hover:bg-blue-800 hover:text-blue-700 dark:hover:text-blue-200'
+      }`}
     >
       {label}
     </Link>
   );
 
   return (
-    <div 
-      className={`h-screen flex flex-col bg-white dark:bg-gray-900 ${isCollapsed ? 'w-20' : 'w-64'} 
-        border-r border-gray-200 dark:border-gray-800 transition-all duration-300 ease-in-out
-        ${isMobile ? 'absolute top-0 left-0 z-50 shadow-lg' : 'relative'}`}
-    >
-      {/* Sidebar header/logo */}
-      <div className="p-4 border-b border-gray-200 dark:border-gray-800 flex justify-between items-center">
-        <div className="flex items-center">
-          <span className="text-2xl font-bold text-blue-600 dark:text-blue-400">
-            A
-          </span>
-          {!isCollapsed && (
-            <span className="ml-2 text-xl font-bold text-gray-800 dark:text-white">
-              {t('Admin Dashboard')}
-            </span>
+    <div className={`
+      ${isMobile 
+        ? 'fixed inset-0 z-50 bg-white dark:bg-gray-900' 
+        : `${isCollapsed ? 'w-20' : 'w-64'} transition-all duration-300`
+      } 
+      bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 flex flex-col h-full shadow-lg
+    `}>
+      
+      {/* Close button for mobile */}
+      {isMobile && (
+        <button
+          onClick={closeMobileMenu}
+          className="absolute top-4 right-4 text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white z-10"
+        >
+          <span className="text-2xl">×</span>
+        </button>
+      )}
+
+      {/* Header */}
+      <div className="p-4 border-b border-gray-200 dark:border-gray-800">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center">
+            <div className="w-8 h-8 rounded-full bg-blue-100 dark:bg-blue-900 flex items-center justify-center text-blue-600 dark:text-blue-400 font-bold mr-3">
+              🧘
+            </div>
+            {!isCollapsed && (
+              <div>
+                <h2 className="text-lg font-bold text-gray-800 dark:text-white">
+                  {t('sidebar.title')}
+                </h2>
+              </div>
+            )}
+          </div>
+          {!isMobile && !isCollapsed && (
+            <button
+              onClick={() => setIsCollapsed(true)}
+              className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+            >
+              <FaChevronRight />
+            </button>
+          )}
+          {!isMobile && isCollapsed && (
+            <button
+              onClick={() => setIsCollapsed(false)}
+              className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+            >
+              <FaChevronDown />
+            </button>
           )}
         </div>
-        {!isMobile && (
-          <button 
-            onClick={toggleCollapse} 
-            className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-          >
-            {isCollapsed ? '→' : '←'}
-          </button>
-        )}
-        {isMobile && (
-          <button 
-            onClick={closeMobileMenu} 
-            className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
-          >
-            ✕
-          </button>
-        )}
       </div>
 
       {/* Admin profile */}
@@ -147,24 +170,24 @@ const Sidebar = ({ isMobile, closeMobileMenu }) => {
         <NavItem 
           to="/admin/dashboard" 
           icon={<FaHome />} 
-          label={t('dashboard')} 
+          label={t('sidebar.dashboard')} 
         />
 
         <NavItem 
           hasSubMenu={true}
           subMenuKey="students" 
           icon={<FaUsers />} 
-          label={t('students')}
+          label={t('sidebar.students')}
         >
-          <SubNavItem to="/admin/students" label={t('allStudents')} />
-          <SubNavItem to="/admin/students/register" label={t('registerStudent')} />
-          <SubNavItem to="/admin/students/classes" label={t('classGroups')} />
+          <SubNavItem to="/admin/students" label={t('sidebar.allStudents')} />
+          <SubNavItem to="/admin/students/register" label={t('sidebar.registerStudent')} />
+          <SubNavItem to="/admin/classes" label={t('sidebar.classGroups')} />
         </NavItem>
 
         <NavItem 
           hasSubMenu={true}
           subMenuKey="attendance" 
-          icon={<FaCalendarAlt />} 
+          icon={<FaCalendarCheck />} 
           label={t('sidebar.attendance')}
         >
           <SubNavItem to="/admin/attendance" label={t('sidebar.markAttendance')} />
@@ -174,7 +197,7 @@ const Sidebar = ({ isMobile, closeMobileMenu }) => {
         <NavItem 
           hasSubMenu={true}
           subMenuKey="exams" 
-          icon="📚" 
+          icon={<FaBookOpen />} 
           label={t('sidebar.exams')}
         >
           <SubNavItem to="/admin/exams" label={t('manageExams')} />
@@ -201,18 +224,20 @@ const Sidebar = ({ isMobile, closeMobileMenu }) => {
       </div>
 
       {/* Utility section */}
-      <div className="p-4 border-t border-gray-200 dark:border-gray-800">
-        <div className="flex flex-col gap-3">
-          <div className="px-2 pt-4 pb-2">
-            <div className="flex items-center">
-              <FaLanguage className="text-gray-300 mr-2" />
-              <span className="text-sm font-medium text-gray-300">{t('sidebar.language')}</span>
-            </div>
-            <div className="mt-2 flex space-x-2">
+      <div className="border-t border-gray-200 dark:border-gray-800 p-4">
+        <div className="space-y-2">
+          {/* Language Switcher */}
+          <div className="mb-4">
+            {!isCollapsed && (
+              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">
+                {t('sidebar.language')}
+              </label>
+            )}
+            <div className="flex space-x-1">
               <button
                 onClick={() => changeLanguage('en')}
-                className={`px-3 py-1 text-sm rounded-md ${
-                  currentLanguage === 'en' 
+                className={`px-2 py-1 text-xs rounded transition-colors ${
+                  currentLanguage === 'en'
                     ? 'bg-blue-600 text-white' 
                     : 'border border-gray-500 text-gray-300 hover:bg-blue-700 hover:text-white'
                 }`}
@@ -221,8 +246,8 @@ const Sidebar = ({ isMobile, closeMobileMenu }) => {
               </button>
               <button
                 onClick={() => changeLanguage('si')}
-                className={`px-3 py-1 text-sm rounded-md ${
-                  currentLanguage === 'si' 
+                className={`px-2 py-1 text-xs rounded transition-colors ${
+                  currentLanguage === 'si'
                     ? 'bg-blue-600 text-white' 
                     : 'border border-gray-500 text-gray-300 hover:bg-blue-700 hover:text-white'
                 }`}

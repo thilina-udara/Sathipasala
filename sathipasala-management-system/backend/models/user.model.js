@@ -6,16 +6,15 @@ const userSchema = new mongoose.Schema({
   name: {
     en: {
       type: String,
-      required: [true, 'English name is required']
+      required: [true, 'Please add an English name']
     },
     si: {
-      type: String,
-      required: [true, 'Sinhala name is required']
+      type: String
     }
   },
   email: {
     type: String,
-    required: [true, 'Email is required'],
+    required: [true, 'Please add an email'],
     unique: true,
     match: [
       /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/,
@@ -24,14 +23,27 @@ const userSchema = new mongoose.Schema({
   },
   phone: {
     type: String,
-    required: [true, 'Phone number is required'],
-    unique: true
+    required: [true, 'Please add a phone number']
   },
   password: {
     type: String,
-    required: [true, 'Password is required'],
+    required: [true, 'Please add a password'],
     minlength: 6,
     select: false
+  },
+  // NEW: Student ID field for student login
+  studentId: {
+    type: String,
+    sparse: true, // Allow multiple null values, but enforce uniqueness for non-null values
+    unique: true,
+    validate: {
+      validator: function(v) {
+        // Only validate format if studentId is provided
+        if (!v) return true;
+        return /^BSP_\d{2}_\d{4}$/.test(v);
+      },
+      message: 'Student ID must follow format BSP_YY_NNNN'
+    }
   },
   role: {
     type: String,
@@ -48,6 +60,15 @@ const userSchema = new mongoose.Schema({
     type: String,
     enum: ['en', 'si'],
     default: 'en'
+  },
+  // NEW: Track if student account is active (for 4-week absence rule)
+  isActive: {
+    type: Boolean,
+    default: true
+  },
+  // NEW: Track last attendance date for students
+  lastAttendanceDate: {
+    type: Date
   },
   createdAt: {
     type: Date,

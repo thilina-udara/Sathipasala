@@ -1,10 +1,13 @@
 const { uploadStudentPhoto, deleteFromCloudinary } = require('../config/cloudinary');
 const Student = require('../models/Student');
+const User = require('../models/user.model');
+const { generateUniqueStudentId, generateTemporaryPassword } = require('../utils/idGenerator');
 const ErrorResponse = require('../utils/errorResponse');
 const asyncHandler = require('../middleware/async.middleware');
 const path = require('path');
 const fs = require('fs');
 const mongoose = require('mongoose');
+const bcrypt = require('bcryptjs');
 
 /**
  * @desc    Register a new student with Cloudinary image
@@ -13,22 +16,53 @@ const mongoose = require('mongoose');
  */
 exports.registerStudent = asyncHandler(async (req, res, next) => {
   console.log('Registering new student:', req.body);
-
+  
   try {
-    // Create student - the ID will be generated in the pre-save hook
-    const student = await Student.create(req.body);
-
-    // Log the generated ID
-    console.log(`Student created with ID: ${student.studentId}`);
-
+    const studentData = req.body;
+    
+    // Generate Student ID and temporary password
+    const studentId = await generateUniqueStudentId();
+    const tempPassword = generateTemporaryPassword();
+    
+    console.log(`Generated Student ID: ${studentId}`);
+    console.log(`Generated temporary password: ${tempPassword}`);
+    
+    // Create student record
+    studentData.studentId = studentId;
+    const student = await Student.create(studentData);
+    
+    // Create user account for student login
+    const hashedPassword = await bcrypt.hash(tempPassword, 10);
+    
+    const userAccount = await User.create({
+      name: studentData.name,
+      email: studentData.parentInfo?.email || `${studentId}@baunseth.temp`, // Temporary email if none provided
+      studentId: studentId, // Store student ID for login
+      password: hashedPassword,
+      role: 'student',
+      firstLogin: true,
+      preferredLanguage: 'en',
+      isActive: true
+    });
+    
+    console.log(`Created user account for student: ${userAccount._id}`);
+    
     res.status(201).json({
       success: true,
       data: student,
-      message: 'Student registered successfully'
+      credentials: {
+        studentId: studentId,
+        temporaryPassword: tempPassword,
+        message: 'Student can login using their Student ID and the temporary password. They should change it on first login.'
+      }
     });
+    
   } catch (error) {
     console.error('Error registering student:', error);
-    return next(new ErrorResponse(`Failed to register student: ${error.message}`, 500));
+    res.status(500).json({
+      success: false,
+      message: `Failed to register student: ${error.message}`
+    });
   }
 });
 

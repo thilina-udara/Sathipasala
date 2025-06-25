@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { FaBook, FaGamepad, FaNewspaper, FaYinYang, FaFacebook, FaTwitter, FaYoutube, FaInstagram, FaVolumeMute, FaVolumeUp } from 'react-icons/fa';
 // Remove CustomCursor import
@@ -224,13 +224,14 @@ const HomePage = () => {
               </button>
             </div>
 
-            {/* Login Button */}
-            <button
-              onClick={() => navigate('/login')}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition shadow-md text-sm font-medium hover:scale-105 hover-effect"
+            {/* Student Login Button - Only visible option */}
+            <Link
+              to="/student-login"
+              className="bg-gradient-to-r from-purple-500 to-blue-500 hover:from-purple-600 hover:to-blue-600 text-white px-6 py-3 rounded-full transition-all duration-200 shadow-lg hover:shadow-xl text-sm font-medium hover:scale-105 hover-effect flex items-center"
             >
-              {language === 'si' ? 'පිවිසෙන්න' : 'Login'}
-            </button>
+              <span className="mr-2 text-lg">🎓</span>
+              {language === 'si' ? 'ශිෂ්‍ය ලොගින්' : 'Student Login'}
+            </Link>
           </div>
         </div>
       </header>

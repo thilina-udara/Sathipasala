@@ -3,7 +3,8 @@ import { AuthProvider } from './contexts/AuthContext';
 import ProtectedRoute from './components/common/ProtectedRoute';
 
 // Pages
-import Login from './pages/Login';
+import AdminLogin from './pages/AdminLogin'; // NEW: Secure admin login
+import StudentLogin from './pages/StudentLogin'; // NEW: Child-friendly student login
 import HomePage from './pages/HomePage'; 
 import AdminLayout from './components/layout/AdminLayout';
 import AdminDashboard from './pages/admin/Dashboard';
@@ -29,7 +30,12 @@ function App() {
         <Routes>
           {/* Public routes */}
           <Route path="/" element={<HomePage />} />
-          <Route path="/login" element={<Login />} />
+          
+          {/* SECURE ADMIN ROUTE - Hidden from general users */}
+          <Route path="/bsp/login/admin" element={<AdminLogin />} />
+          
+          {/* Student login route - public and friendly */}
+          <Route path="/student-login" element={<StudentLogin />} />
           
           {/* Games routes */}
           <Route path="/games/breathing-buddies" element={<BreathingBuddies />} />
@@ -60,6 +66,21 @@ function App() {
               <Route path="/admin/attendance" element={<Attendance />} />
               <Route path="/admin/attendance/analysis" element={<AttendanceAnalysis />} />
             </Route>
+          </Route>
+          
+          {/* Protected routes for Students */}
+          <Route element={<ProtectedRoute allowedRoles={['student']} />}>
+            <Route path="/student/dashboard" element={<div className="p-8 text-center bg-gradient-to-br from-pink-100 to-purple-100 min-h-screen">
+              <h1 className="text-4xl font-bold bg-gradient-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent mb-4">
+                🎓 Student Dashboard
+              </h1>
+              <p className="text-lg text-purple-700">
+                🌟 Welcome to your magical learning portal! 🌟
+              </p>
+              <p className="text-gray-600 mt-2">
+                Your dashboard will be ready soon!
+              </p>
+            </div>} />
           </Route>
           
           {/* 404 Page - Catch all unmatched routes */}
