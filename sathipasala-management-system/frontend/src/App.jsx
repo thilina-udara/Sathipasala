@@ -21,6 +21,7 @@ import KindnessGarden from './pages/games/KindnessGarden';
 import FivePrecepts from './pages/games/FivePrecepts';
 import SacredGrove from './pages/games/SacredGrove';
 import ClassGroups from './pages/admin/ClassGroups';
+import GalleryManager from './pages/admin/gallery/GalleryManager';
 import './i18n';
 
 function App() {
@@ -65,6 +66,7 @@ function App() {
               {/* Attendance Routes */}
               <Route path="/admin/attendance" element={<Attendance />} />
               <Route path="/admin/attendance/analysis" element={<AttendanceAnalysis />} />
+              <Route path="/admin/gallery" element={<GalleryManager />} />
             </Route>
           </Route>
           

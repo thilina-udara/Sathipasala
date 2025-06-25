@@ -53,6 +53,7 @@ const attendanceRoutes = require('./routes/attendance.routes');
 const holidaysRoutes = require('./routes/holidays.routes');
 const statsRoutes = require('./routes/stats.routes'); // Add this with your other routes
 const uploadRoutes = require('./routes/upload.routes'); // Add this line with your other route imports
+const galleryRoutes = require('./routes/gallery.routes'); // Add this line for gallery routes
 
 // Import the attendance setup function
 const { setupAttendanceCollection } = require('./models/Attendance');
@@ -89,6 +90,7 @@ app.use('/api/attendance', attendanceRoutes);
 app.use('/api/holidays', holidaysRoutes);
 app.use('/api/stats', statsRoutes); // Register the routes
 app.use('/api/upload', uploadRoutes); // Add this line with your other route registrations
+app.use('/api/gallery', galleryRoutes); // Add this line for gallery routes
 
 // Basic route for testing
 app.get('/', (req, res) => {

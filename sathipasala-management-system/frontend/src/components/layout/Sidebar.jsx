@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../contexts/AuthContext';
-import { FaHome, FaUsers, FaCalendarCheck, FaUserGraduate, FaChartBar, FaCog, FaExclamationTriangle, FaUser, FaUserCog, FaBookOpen, FaChevronDown, FaChevronRight } from 'react-icons/fa';
+import { FaHome, FaUsers, FaCalendarCheck, FaUserGraduate, FaChartBar, FaCog, FaExclamationTriangle, FaUser, FaUserCog, FaBookOpen, FaChevronDown, FaChevronRight, FaImages } from 'react-icons/fa';
 
 const Sidebar = ({ isMobile, closeMobileMenu }) => {
   const { t, i18n } = useTranslation();
@@ -183,6 +183,13 @@ const Sidebar = ({ isMobile, closeMobileMenu }) => {
           <SubNavItem to="/admin/students/register" label={t('sidebar.registerStudent')} />
           <SubNavItem to="/admin/classes" label={t('sidebar.classGroups')} />
         </NavItem>
+
+        {/* Add Gallery link here */}
+        <NavItem 
+          to="/admin/gallery"
+          icon={<FaImages />}
+          label="Gallery"
+        />
 
         <NavItem 
           hasSubMenu={true}

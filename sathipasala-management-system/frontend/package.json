@@ -26,6 +26,8 @@
     "cloudinary-react": "^1.8.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
+    "embla-carousel-autoplay": "^8.6.0",
+    "embla-carousel-react": "^8.6.0",
     "framer-motion": "^10.18.0",
     "i18next": "^23.16.8",
     "jspdf": "^3.0.1",
@@ -41,6 +43,7 @@
     "react-icons": "^5.5.0",
     "react-router-dom": "^6.30.1",
     "recharts": "^2.10.3",
+    "swiper": "^11.2.8",
     "tailwind-merge": "^3.3.0",
     "tailwind-variants": "^1.0.0",
     "three": "^0.159.0"
