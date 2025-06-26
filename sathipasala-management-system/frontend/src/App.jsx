@@ -22,6 +22,8 @@ import FivePrecepts from './pages/games/FivePrecepts';
 import SacredGrove from './pages/games/SacredGrove';
 import ClassGroups from './pages/admin/ClassGroups';
 import GalleryManager from './pages/admin/gallery/GalleryManager';
+import GalleryPage from './pages/GalleryPage';
+import HomeSwiperAdmin from './pages/admin/HomeSwiperAdmin';
 import './i18n';
 
 function App() {
@@ -67,6 +69,7 @@ function App() {
               <Route path="/admin/attendance" element={<Attendance />} />
               <Route path="/admin/attendance/analysis" element={<AttendanceAnalysis />} />
               <Route path="/admin/gallery" element={<GalleryManager />} />
+              <Route path="/admin/home-swiper" element={<HomeSwiperAdmin />} />
             </Route>
           </Route>
           
@@ -84,6 +87,9 @@ function App() {
               </p>
             </div>} />
           </Route>
+          
+          {/* Gallery Page - Publicly accessible gallery */}
+          <Route path="/baunseth_sathi_pasala/gallery" element={<GalleryPage />} />
           
           {/* 404 Page - Catch all unmatched routes */}
           <Route path="*" element={

@@ -1,23 +1,26 @@
 import React, { useState } from "react";
 import { FaVolumeMute, FaVolumeUp, FaBars, FaTimes } from "react-icons/fa";
 import { motion, AnimatePresence } from "framer-motion";
+import { Link } from "react-router-dom";
 import logo from "../components/image/logo/logo.png";
 
-const navLinks = [
-  { id: "home", labelSi: "මුල් පිටුව", labelEn: "Home" },
-  { id: "subjects", labelSi: "විෂයයන්", labelEn: "Subjects" },
-  { id: "gallery", labelSi: "ගැලරිය", labelEn: "Gallery" },
-  { id: "games", labelSi: "ක්‍රීඩා", labelEn: "Games" },
-  { id: "resources", labelSi: "සම්පත්", labelEn: "Resources" },
+// Updated navigation links with paths
+const navItems = [
+  { id: "home", labelSi: "මුල් පිටුව", labelEn: "Home", path: "/" },
+  { id: "gallery", labelSi: "ගැලරිය", labelEn: "Gallery", path: "/baunseth_sathi_pasala/gallery" },
+  { id: "subjects", labelSi: "විෂයයන්", labelEn: "Subjects", path: "/subjects" },
+  { id: "games", labelSi: "ක්‍රීඩා", labelEn: "Games", path: "/games" },
+  { id: "resources", labelSi: "සම්පත්", labelEn: "Resources", path: "/resources" },
 ];
 
-const Navigation = ({
-  language,
-  switchLanguage,
-  isMuted,
-  setIsMuted,
-  playSound,
-}) => {
+const Navigation = (props) => {
+  const {
+    language,
+    switchLanguage,
+    isMuted,
+    setIsMuted,
+    playSound,
+  } = props;
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
@@ -49,16 +52,16 @@ const Navigation = ({
 
         {/* Desktop Navigation */}
         <nav className="hidden md:flex space-x-8 text-gray-700 dark:text-gray-200">
-          {navLinks.map((item) => (
-            <a
+          {navItems.map((item) => (
+            <Link
+              to={item.path}
               key={item.id}
-              href={`#${item.id}`}
               className="hover:text-blue-600 dark:hover:text-blue-400 font-medium relative group"
               onClick={playSound}
             >
               {language === "si" ? item.labelSi : item.labelEn}
               <span className="absolute bottom-0 left-0 w-0 h-0.5 bg-blue-600 transition-all duration-300 ease-out group-hover:w-full"></span>
-            </a>
+            </Link>
           ))}
         </nav>
 
@@ -164,10 +167,10 @@ const Navigation = ({
                 </button>
               </div>
               <nav className="flex flex-col px-6 py-4 space-y-4">
-                {navLinks.map((item) => (
-                  <a
+                {navItems.map((item) => (
+                  <Link
+                    to={item.path}
                     key={item.id}
-                    href={`#${item.id}`}
                     className="text-lg font-medium text-gray-700 dark:text-gray-200 hover:text-blue-600 dark:hover:text-blue-400 transition"
                     onClick={() => {
                       playSound();
@@ -175,7 +178,7 @@ const Navigation = ({
                     }}
                   >
                     {language === "si" ? item.labelSi : item.labelEn}
-                  </a>
+                  </Link>
                 ))}
               </nav>
               <div className="flex flex-col px-6 space-y-4 mt-auto mb-8">
@@ -194,6 +197,7 @@ const Navigation = ({
                     <FaVolumeUp className="text-gray-600 dark:text-gray-300" />
                   )}
                 </button>
+
                 {/* Language Switcher */}
                 <div className="border border-gray-300 dark:border-gray-600 rounded-lg p-1 flex w-max">
                   <button
@@ -223,6 +227,7 @@ const Navigation = ({
                     සිං
                   </button>
                 </div>
+
                 {/* Student Login Button */}
                 <motion.button
                   whileHover={{ scale: 1.05 }}
@@ -235,7 +240,6 @@ const Navigation = ({
                 </motion.button>
               </div>
             </div>
-            {/* Overlay click closes menu */}
             <div
               className="flex-1"
               onClick={() => setMobileOpen(false)}
