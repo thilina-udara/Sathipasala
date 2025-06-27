@@ -35,8 +35,7 @@ exports.registerStudent = asyncHandler(async (req, res, next) => {
     // Create user account for student login
     const userAccount = await User.create({
       name: studentData.name,
-      email: studentData.parentInfo?.email || `${studentId}@baunseth.temp`,
-      phone: studentData.parentInfo?.phone || '',
+      // Do NOT include email or phone to avoid duplicate key error on null/undefined
       studentId: studentId,
       password: tempPassword, // <-- Use plain tempPassword, NOT hashedPassword
       role: 'student',
@@ -561,3 +560,4 @@ exports.updateStudentPassword = async (req, res) => {
     });
   }
 };
+ 

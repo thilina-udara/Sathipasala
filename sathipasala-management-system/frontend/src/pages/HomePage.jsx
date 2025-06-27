@@ -12,6 +12,7 @@ import Autoplay from 'embla-carousel-autoplay';
 import logo from "../components/image/logo/logo.png";
 import Navigation from "../components/Navigation";
 import Footer from "../components/Footer";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 const HomePage = () => {
   const { i18n } = useTranslation();
@@ -166,6 +167,47 @@ const HomePage = () => {
     }
   ];
 
+  // Gallery images state
+  const [galleryImages, setGalleryImages] = useState([]);
+  const [gallerySlide, setGallerySlide] = useState(0);
+  const [galleryLoading, setGalleryLoading] = useState(false);
+
+  // Fetch gallery images from API
+  useEffect(() => {
+    const fetchGallery = async () => {
+      setGalleryLoading(true);
+      try {
+        const res = await axios.get("/api/gallery");
+        setGalleryImages(res.data.data || []);
+      } catch (e) {
+        setGalleryImages([]);
+      }
+      setGalleryLoading(false);
+    };
+    fetchGallery();
+  }, []);
+
+  // Auto-advance gallery carousel
+  useEffect(() => {
+    if (galleryImages.length === 0) return;
+    const interval = setInterval(() => {
+      setGallerySlide((prev) => (prev + 1) % galleryImages.length);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [galleryImages.length]);
+
+  // Carousel state
+  const [currentSlide, setCurrentSlide] = useState(0);
+
+  // Auto-advance carousel
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentSlide((prev) => (prev + 1) % carouselImages.length);
+    }, 5000);
+    
+    return () => clearInterval(interval);
+  }, [carouselImages.length]);
+
   // Embla Carousel setup for gallery
   const [emblaRef, emblaApi] = useEmblaCarousel(
     {
@@ -181,24 +223,10 @@ const HomePage = () => {
     [Autoplay({ delay: 3500, stopOnInteraction: false })]
   );
 
-  // New state for homepage swiper images
-  const [swiperImages, setSwiperImages] = useState([]);
-  const [swiperLoading, setSwiperLoading] = useState(false);
-
-  // Fetch swiper images from API
-  useEffect(() => {
-    const fetchSwiperImages = async () => {
-      setSwiperLoading(true);
-      try {
-        const res = await axios.get("/api/home-swiper");
-        setSwiperImages(res.data.data || []);
-      } catch (e) {
-        setSwiperImages([]);
-      }
-      setSwiperLoading(false);
-    };
-    fetchSwiperImages();
-  }, []);
+  // Navigate to subject learning page
+  const handleStartLearning = (subjectId) => {
+    navigate(`/learn/${subjectId}`);
+  };
 
   return (
     <div className="min-h-screen flex flex-col bg-gradient-to-br from-blue-50 to-purple-100 dark:from-gray-900 dark:to-indigo-950 font-sans">
@@ -313,67 +341,74 @@ const HomePage = () => {
         </div>
       </section>
 
-      {/* Swiper Section - Now called "Gallery" and placed before Learning Subjects */}
-      <section id="gallery" className="py-10 px-6 bg-white dark:bg-gray-900">
+      {/* Gallery Section - Embla Carousel */}
+      <section id="gallery" className="py-16 px-6 bg-white dark:bg-gray-900">
         <div className="max-w-5xl mx-auto">
-          <div className="text-center mb-10">
+          <motion.div
+            className="text-center mb-10"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.2 }}
+          >
             <h2 className="text-3xl font-bold text-blue-800 dark:text-blue-200 mb-2">
               {language === "si" ? "ගැලරිය" : "Gallery"}
             </h2>
             <p className="text-gray-600 dark:text-gray-300">
               {language === "si"
-                ? "මෙම රූප ප්‍රධාන පිටුවේ පෙන්වයි."
-                : "These images appear on the homepage gallery."}
+                ? "අපගේ සිදුවීම්, වැඩසටහන් සහ මතකයන්."
+                : "Our events, programs, and memories."}
             </p>
-          </div>
+            {/* No Gallery button here! */}
+          </motion.div>
           <div className="relative w-full">
-            {swiperLoading ? (
+            {galleryLoading ? (
               <div className="h-80 flex items-center justify-center text-lg text-gray-500">
-                {language === "si" ? "රූප පූරණය වෙමින්..." : "Loading images..."}
+                {language === "si" ? "පිංතූර පූරණය වෙමින්..." : "Loading images..."}
               </div>
-            ) : swiperImages.length === 0 ? (
+            ) : galleryImages.length === 0 ? (
               <div className="h-80 flex items-center justify-center text-lg text-gray-400">
-                {language === "si" ? "රූප නොමැත" : "No images"}
+                {language === "si" ? "පිංතූර නොමැත" : "No images"}
               </div>
             ) : (
               <div className="overflow-hidden" ref={emblaRef}>
                 <div className="flex">
-                  {swiperImages.map((img, idx) => (
+                  {galleryImages.map((img, idx) => (
                     <div
-                      key={img._id || idx}
+                      key={img._id || img.id || idx}
                       className="flex-[0_0_100%] md:flex-[0_0_50%] lg:flex-[0_0_33.333%] px-2"
                     >
-                      <motion.img
-                        src={img.url}
-                        alt={img.title || ""}
-                        className="w-full h-[260px] object-cover rounded-2xl"
-                        draggable={false}
-                        whileHover={{ scale: 1.08 }}
-                        whileTap={{ scale: 0.98 }}
-                        transition={{ type: "spring", stiffness: 200, damping: 20 }}
-                      />
-                      {img.title && (
-                        <div className="mt-2 text-base font-semibold text-center text-blue-700 dark:text-blue-200">
-                          {img.title}
-                        </div>
-                      )}
-                      {img.description && (
-                        <div className="text-xs text-gray-600 dark:text-gray-300 text-center">
-                          {img.description}
-                        </div>
-                      )}
-                      {img.link && (
-                        <div className="text-center mt-1">
-                          <a
-                            href={img.link}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-blue-500 underline text-xs"
-                          >
-                            {img.link}
-                          </a>
-                        </div>
-                      )}
+                      {/* Zoom-in effect on hover */}
+                      <div
+                        className="flex flex-col items-center justify-center h-[300px] transition-transform duration-300 rounded-2xl  overflow-hidden"
+                        style={{
+                          perspective: "1000px"
+                        }}
+                      >
+                        <motion.img
+                          src={img.url || img.src}
+                          alt={img.alt}
+                          className="w-full h-[260px] object-cover rounded-2xl"
+                          style={{
+                            background: "none"
+                          }}
+                          draggable={false}
+                          whileHover={{
+                            scale: 1.08
+                          }}
+                          whileTap={{
+                            scale: 0.98
+                          }}
+                          transition={{ type: "spring", stiffness: 200, damping: 20 }}
+                        />
+                        {/* Remove the line under the image by removing this div */}
+{/*                         
+                        {img.alt && (
+                          <div className="mt-2 text-xs text-gray-700 dark:text-gray-200 text-center px-2">
+                            {img.alt}
+                          </div>
+                        )}
+                        */}
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -402,27 +437,24 @@ const HomePage = () => {
             </p>
           </motion.div>
 
+          {/* Responsive Card Grid for Subjects */}
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {subjects.map((subject, index) => (
-              <motion.div
+              <Card
                 key={subject.name}
-                className="bg-gradient-to-br from-blue-50 to-purple-50 dark:from-gray-700 dark:to-gray-900 rounded-2xl shadow-lg overflow-hidden border border-gray-200 dark:border-gray-700"
-                initial={{ opacity: 0, y: 30 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.1 * index }}
-                whileHover={{ y: -10, transition: { duration: 0.2 } }}
+                className="bg-gradient-to-br from-blue-50 to-purple-50 dark:from-gray-700 dark:to-gray-900 rounded-2xl shadow-lg overflow-hidden border border-gray-200 dark:border-gray-700 flex flex-col"
               >
-                <div className="p-6">
-                  <div className="flex items-center mb-4">
-                    <div className="w-14 h-14 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center text-2xl mr-4">
-                      {subject.icon}
-                    </div>
-                    <h3 className="text-xl font-bold text-gray-800 dark:text-gray-100">{subject.name}</h3>
+                <CardHeader className="flex flex-row items-center gap-4 pb-2">
+                  <div className="w-14 h-14 bg-blue-100 dark:bg-blue-900 rounded-full flex items-center justify-center text-2xl">
+                    {subject.icon}
                   </div>
-                  
-                  <p className="text-gray-600 dark:text-gray-300 mb-6">{subject.description}</p>
-                  
-                  <div className="mb-6">
+                  <CardTitle className="text-xl font-bold text-gray-800 dark:text-gray-100">
+                    {subject.name}
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="flex-1 flex flex-col justify-between">
+                  <p className="text-gray-600 dark:text-gray-300 mb-4">{subject.description}</p>
+                  <div className="mb-4">
                     <h4 className="font-semibold text-gray-700 dark:text-gray-300 mb-2">
                       {language === 'si' ? 'මට්ටම්' : 'Levels'}
                     </h4>
@@ -442,16 +474,15 @@ const HomePage = () => {
                       ))}
                     </div>
                   </div>
-                  
                   <button 
-                    className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white py-3 rounded-lg transition flex items-center justify-center"
-                    onClick={playSound}
+                    className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white py-3 rounded-lg transition flex items-center justify-center mt-4"
+                    onClick={() => handleStartLearning(subject.name.toLowerCase())}
                   >
                     <span className="mr-2">{language === 'si' ? 'ආරම්භ කරන්න' : 'Start Learning'}</span>
                     <FaBook />
                   </button>
-                </div>
-              </motion.div>
+                </CardContent>
+              </Card>
             ))}
           </div>
         </div>

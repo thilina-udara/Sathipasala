@@ -24,6 +24,8 @@ import ClassGroups from './pages/admin/ClassGroups';
 import GalleryManager from './pages/admin/gallery/GalleryManager';
 import GalleryPage from './pages/GalleryPage';
 import HomeSwiperAdmin from './pages/admin/HomeSwiperAdmin';
+import LearnSubjectPage from './pages/learn/LearnSubjectPage';
+import EnglishLevel from './pages/learn/EnglishLevel';
 import './i18n';
 
 function App() {
@@ -87,6 +89,10 @@ function App() {
               </p>
             </div>} />
           </Route>
+          
+          {/* Subject Learning Page - Publicly accessible subject learning */}
+          <Route path="/learn/:subjectId" element={<LearnSubjectPage />} />
+          <Route path="/learn/english/:levelId" element={<EnglishLevel />} />
           
           {/* Gallery Page - Publicly accessible gallery */}
           <Route path="/baunseth_sathi_pasala/gallery" element={<GalleryPage />} />
