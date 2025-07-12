@@ -4,11 +4,11 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const path = require('path');
 const fs = require('fs');
-const connectDB = require('./config/db');
+// const connectDB = require('./config/db');
 
 // Load environment variables
 dotenv.config();
-connectDB();
+// connectDB();
 
 // Initialize express app
 const app = express();
@@ -64,26 +64,26 @@ const { setupAttendanceCollection } = require('./models/Attendance');
 // Import database repair utility
 const { repairAttendanceCollection } = require('./utils/dbRepair');
 
-// Connect to MongoDB and set up collections
-// mongoose.connect(process.env.MONGO_URI)
-//   .then(async () => {
-//     console.log('Connected to MongoDB');
+//Connect to MongoDB and set up collections
+mongoose.connect(process.env.MONGO_URI)
+  .then(async () => {
+    console.log('Connected to MongoDB');
     
-//     // Run database repair on startup
-//     console.log('Repairing database collections...');
-//     await repairAttendanceCollection();
-//     console.log('Database repair completed');
+    // Run database repair on startup
+    console.log('Repairing database collections...');
+    await repairAttendanceCollection();
+    console.log('Database repair completed');
     
-//     // Continue with server startup
-//     const PORT = process.env.PORT || 5000;
-//     app.listen(PORT, () => {
-//       console.log(`Server running on port ${PORT}`);
-//     });
-//   })
-//   .catch(err => {
-//     console.error('MongoDB connection error:', err);
-//     process.exit(1);
-//   });
+    // Continue with server startup
+    const PORT = process.env.PORT || 5000;
+    app.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
+    });
+  })
+  .catch(err => {
+    console.error('MongoDB connection error:', err);
+    process.exit(1);
+  });
 
 // Mount routes
 console.log('Registering API routes...');
